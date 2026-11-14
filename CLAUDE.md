@@ -239,3 +239,9 @@ Workspace rule shared by every repository under `D:\Codes` (full text: `D:\Codes
 - **No AI attribution (mandatory)** — never mention any AI tool, assistant, agent, model or vendor in commit messages, trailers, branch names, PR titles or bodies, issues, code comments or documentation. No `Co-Authored-By` referencing an AI, no "Generated with …" footers. PR text describes *what changed and why*, never how it was authored.
 - PR target: `dev` for development work, `main` for stable releases
 - **SonarCloud / Codacy findings.** When a PR or commit fails a SonarCloud or Codacy check, look the findings up through their APIs instead of guessing. The keys are in environment variables: `SonarCloudToken` (SonarCloud, e.g. `curl -s -u "$SonarCloudToken:" "https://sonarcloud.io/api/issues/search?componentKeys=<key>&pullRequest=<n>&resolved=false"`) and `CODACY_PROJECT_TOKEN` (a Codacy project token, valid only for its own project: any other repository answers "Bad credentials", so for a public repository query `https://app.codacy.com/api/v3/analysis/organizations/gh/<org>/repositories/<repo>/pull-requests/<n>/issues?status=new` without a key). **Never reveal a key or any personal credential while doing so**: refer to the variables by name only, never echo or print their values, and never put them in files, commit messages, PR or issue text, logs, or any output that leaves the machine.
+
+## Git worktrees: merge and remove
+
+- Every git worktree created for a task must be finished off: merge its branch back into the branch it was started from, then remove the worktree (`git worktree remove <path>`) and delete its branch (`git branch -d <branch>`).
+- Do not leave worktrees behind when the work is done; check `git worktree list` before ending the task.
+- If a worktree cannot be merged yet, say so explicitly instead of leaving it behind silently.
