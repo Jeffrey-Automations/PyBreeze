@@ -120,7 +120,9 @@ python -m pybreeze → start_editor() → QApplication → open_main_window() �
 
 Before PySide6 is imported, `main_ui.py` sets `LOCUST_SKIP_MONKEY_PATCH` (to `IDE_ONLY`, unless the user
 set it) to keep locust's gevent patching away from Qt. The processes the IDE starts get
-`subprocess_util.child_environment()`, which leaves it out: a load test needs the patching.
+`subprocess_util.child_environment()`, which leaves it out: a load test needs the patching. The processes
+JEditor starts itself (Run Program, Run Debugger, shell, terminal, test panel) get the same function
+through `je_editor.set_child_environment_provider`, a hook JEditor has after 1.0.34 (§6).
 
 **Run an automation script**
 
@@ -240,7 +242,10 @@ MCP Client → Calls → Open in Report Viewer → ReportViewerGUI.show_report(M
 
 ## 6. Cross-project boundaries
 
-- **JEditor (upstream)**: `PyBreezeMainWindow` subclasses `je_editor.EditorMain` in extend mode
+- **JEditor (upstream)**: PyBreeze registers `child_environment` with
+  `je_editor.set_child_environment_provider` when JEditor has it (`main_ui.give_jeditor_the_child_environment()`),
+  and assigns `python_compiler` through a property of its own, relying on JEditor setting that name as a
+  plain attribute. `PyBreezeMainWindow` subclasses `je_editor.EditorMain` in extend mode
   and calls `super().__init__(debug_mode, show_system_tray_ray, extend=True)`. `pybreeze/__init__.py`
   re-exports JEditor's plugin API. Everything else PyBreeze takes from the top level is in
   je_editor's `__all__`, except for these names, which it imports from module paths JEditor has not

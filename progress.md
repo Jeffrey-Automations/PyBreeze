@@ -49,17 +49,15 @@
   - 除錯器跑完之後同一個分頁可以再次除錯；設定檔的 `ui_style` 不是字串時不再讓 IDE 起不來；JEditor 自己的自動儲存不再問「檔案被外部修改」
     （`test_file_tree_rename.py` 兩個存檔測試為此擋掉分頁的監看訊號，可以拿掉）。
   - 啟動時不再匯入 AI 聊天面板與 IPython；在這裡重新量一次 `-X importtime`，更新文件裡的啟動時間。
+  - Variable Inspector 與子行程環境的掛點已經在 JEditor 做好（JEditor 的 U-20261116-01、-02，PR #303），1.0.34 還沒有。下限提高到含它們的版本之後：
+    拿掉 `give_jeditor_the_child_environment()` 的 `ImportError` 分支與它的測試、Sphinx 裡「JEditor 1.0.34 與更早的版本」的三處註記
+    （`menu_file_run_text.rst`、教學 5 的疑難排解，中英文各一），並把 README 的功能清單補上 Variable Inspector。
   - **PySide6 要一起從 6.11.2 改成 6.12.0**：je-editor 從 1.0.32 起釘的是 `PySide6==6.12.0`，而這裡釘 6.11.2，所以 pip 目前只會解析到 1.0.31 以下，
     拿不到新外框。提高 je-editor 下限的同一個 commit 要把三個檔案（`requirements.txt`、`pyproject.toml`、`dev.toml`）的 PySide6 改成 6.12.0，
     並確認 frontengine（允許 `<6.13,>=6.11.2`）與 README 的版本說明。
 
 ### 仍要在 JEditor 動手
 
-- **#117** 〔阻塞〕〔已決定：要讓 Variable Inspector 真的能用〕JEditor 的變數檢視器永遠是空的：`VariableModel` 顯示交給它的 `namespace`，但沒有任何程式給它
-  （`je_editor/pyside_ui/code/variable_inspector/inspector_gui.py`）。要讓它能看到目前的變數值（IPython 主控台的 namespace，或暫停中的除錯器）。README 已不把它列為功能，Sphinx 頁面寫明是空的；修好後兩處都要改回來。
-- **#120** 〔阻塞〕〔已決定：讓宿主提供子程序的環境變數〕用 JEditor 的 Run Program、Run Debugger 或 shell 跑 locust 腳本時，HttpUser 一次只跑一個：那些程序沿用 IDE 自己的環境
-  （`subprocess.Popen` 沒給 `env`，`code_exec.py`、`shell_exec.py`），裡面帶著 PyBreeze 設的 `LOCUST_SKIP_MONKEY_PATCH`；10 個使用者的 3 秒測試跑了三分鐘以上。
-  PyBreeze 自己的執行都經過 `child_environment()` 拿掉值為 `subprocess_util.IDE_ONLY` 的變數。JEditor 要讓宿主能提供它啟動程序時用的環境。
 ### PyBreeze 自己的功能
 
 - **#130** 〔決定〕JEditor 設定裡存的直譯器（`python_compiler`）每次啟動都被忘掉：`EditorMain.startup_setting()` 還原之後，`PyBreezeMainWindow.__init__` 又設成 `None`

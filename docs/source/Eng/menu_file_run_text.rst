@@ -168,7 +168,8 @@ Tab and Dock Menus
   front
 - **Snippet Editor** -- the snippets in ``.jeditor/snippets.json``
 - **Tools Tab** -- IPython (Jupyter, inside the IDE's own Python), the variable inspector
-  (empty with JEditor 1.0.27: nothing gives it variables to show),
+  (the IPython console's variables, editable, or the locals of a paused debugger; empty
+  with JEditor 1.0.34 and earlier, where nothing gave it variables to show),
   FrontEngine, ChatUI, the TODO panel, the outline of the current Python file, and
   JupyterLab (see :doc:`jupyter_lab`)
 - **Git Tab** -- the Git client, the branch tree viewer, the code diff viewer, and the

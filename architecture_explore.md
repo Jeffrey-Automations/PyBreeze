@@ -84,7 +84,7 @@ PyBreeze 是一個「自動化優先」的 Python IDE，建構在 **PySide6 + JE
 4. `showMaximized()` → `app.exec()`
 5. 離開時以 `os._exit(ret)` 硬退出（避開 Qt 拆解殘留執行緒）
 
-模組層級有一個副作用：`main_ui.py` 在匯入 PySide6 之前就設定 `LOCUST_SKIP_MONKEY_PATCH`（值是 `subprocess_util.IDE_ONLY`；使用者自己設過就沿用），避免 locust 一 import 就對整個行程做的 gevent monkey patch 破壞 Qt（Load Density GUI、JEditor 行程內的 IPython console 都可能 import 它）。IDE 啟動的行程拿到的是 `child_environment()`，不帶這個值：負載測試要靠 patch 才能讓使用者同時跑，帶著它時 HttpUser 一個接一個跑，3 秒的測試跑了三分多鐘。
+`give_jeditor_the_child_environment()` 在建視窗之前把 `subprocess_util.child_environment` 登記給 JEditor（`je_editor.set_child_environment_provider`，1.0.34 之後才有；沒有時記錄一行並照舊），JEditor 自己啟動的程式（Run Program、Run Debugger、Shell、終端機、測試面板）才不會帶著 IDE 只給自己設的變數。模組層級有一個副作用：`main_ui.py` 在匯入 PySide6 之前就設定 `LOCUST_SKIP_MONKEY_PATCH`（值是 `subprocess_util.IDE_ONLY`；使用者自己設過就沿用），避免 locust 一 import 就對整個行程做的 gevent monkey patch 破壞 Qt（Load Density GUI、JEditor 行程內的 IPython console 都可能 import 它）。IDE 啟動的行程拿到的是 `child_environment()`，不帶這個值：負載測試要靠 patch 才能讓使用者同時跑，帶著它時 HttpUser 一個接一個跑，3 秒的測試跑了三分多鐘。
 
 ---
 

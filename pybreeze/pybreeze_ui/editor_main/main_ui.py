@@ -5,7 +5,7 @@ import sys
 from os import environ
 from pathlib import Path
 
-from pybreeze.utils.subprocess_util import IDE_ONLY
+from pybreeze.utils.subprocess_util import IDE_ONLY, child_environment
 
 # locust patches the whole process with gevent as it imports unless this is set,
 # and the IDE imports it: the Load Density GUI, or a user in JEditor's
@@ -50,6 +50,26 @@ EDITOR_EXTEND_TAB: dict[str, type[QWidget]] = {
 # Shipped beside this module (package data): it was read from the working
 # folder, which a started IDE never has, and the window had no icon
 _ICON_PATH = Path(__file__).with_name("pybreeze_icon.ico")
+
+
+def give_jeditor_the_child_environment() -> bool:
+    """Have JEditor start the user's programs with ``child_environment()``.
+
+    JEditor's Run Program, Run Debugger, shell, terminal and test panel start
+    processes of their own, with the IDE's environment as it was. A variable
+    the IDE set for itself alone went along: with ``LOCUST_SKIP_MONKEY_PATCH``
+    in it, a locust script run from the editor ran one user at a time.
+
+    :return: ``False`` with a JEditor that has no such hook yet (1.0.34 and
+        earlier), where those runs keep the IDE's environment
+    """
+    try:
+        from je_editor import set_child_environment_provider
+    except ImportError:
+        pybreeze_logger.info("main_ui.py this JEditor cannot be given the environment of the programs it starts")
+        return False
+    set_child_environment_provider(child_environment)
+    return True
 
 
 def _remember_navigation_visible(visible: bool) -> None:
@@ -100,6 +120,8 @@ class PyBreezeMainWindow(EditorMain):
         # dictionary it reads from as a merged copy, so strings added afterwards are
         # missing from it, and a menu given a None title crashes Qt.
         update_language_dict()
+        # Before anything can be run from the window
+        give_jeditor_the_child_environment()
         super().__init__(debug_mode, show_system_tray_ray, extend=True)
         show_only_warnings_in_code_result()
         # Note: EditorMain.__init__ already calls load_external_plugins()
