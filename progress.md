@@ -11,6 +11,8 @@
   第一次啟動時側邊欄顯示導覽面板、活動列的指南針圖示可以切換、**檢視 ▸ 導覽** 有作用；切到檔案總管再關閉重開，會回到離開時的那個面板；
   JEditor Dark 與 JEditor Light 兩個主題下，PyBreeze 自己的工具分頁（cURL、HAR、JWT、Diff、SSH、AI、架構圖編輯器）文字與底色都看得清楚；
   高解析度縮放（125%、150%）下活動列圖示不模糊。
+  另外 JupyterLab 分頁改成帶 token 載入（U-20261115-05）：伺服器端已用真正的 jupyter_server 驗過，但內嵌的畫面沒有在螢幕上開過，
+  要確認分頁開得起來、不會停在登入頁，筆記本能執行。
 - **#150** 工具分頁的截圖仍是 `dark_amber`：`images/tool_*.png`、兩張 montage、架構圖編輯器、SSH 用戶端、AI 與提示詞面板、prthinker 對話框、執行視窗。
   主視窗與三張選單已經以 JEditor Dark 重拍（U-20261115-02）。這些要帶著各自的範例資料重拍；`tool_response_inspector.png`、`tool_har_import.png`、
   `diagram_editor.png` 另外還停在換行與間距調整之前的樣子。
@@ -63,8 +65,6 @@
 
 - **#89** 〔已決定：提供〕prthinker 設定有 Gemini、Cohere、Mistral 後端，卻沒有填金鑰的欄位：prthinker 從啟動 IDE 的環境讀取，對話框只在選到它們時顯示變數名稱
   （`KEY_FROM_ENVIRONMENT`，`dialog/prthinker_setting_dialog.py`）。要比照 OpenAI 與 Anthropic 加上密碼欄位，並與它們存在一起。
-- **#92** 〔已決定：每次啟動產生一個 token，載入 view 時使用〕內嵌的 JupyterLab 沒有 token（`--ServerApp.token=`）：只綁 loopback 擋得住瀏覽器與別台機器，擋不住同一台機器上的其他帳號
-  （RDS、實驗室的 Linux），它們能以 IDE 使用者的身分拿到 kernel。CLAUDE.md 的 Security › JupyterLab 規則要跟著改。
 - **#111** 〔已決定：允許，在確認畫面明確顯示該位址後放行〕AI Code Review、CoT Code Review 與 Skill Send 拒絕本機與私有網路的端點（`validate_url`；`url_validation._is_blocked_ip`），
   所以本機的模型伺服器（Ollama、LM Studio、localhost 上的 prthinker）用不了。要讓使用者在看過位址的確認之後允許 loopback 或私有位址；CLAUDE.md 的 Security › Network 規則要跟著改。
 - **#130** 〔決定〕JEditor 設定裡存的直譯器（`python_compiler`）每次啟動都被忘掉：`EditorMain.startup_setting()` 還原之後，`PyBreezeMainWindow.__init__` 又設成 `None`

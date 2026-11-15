@@ -16,8 +16,10 @@ First-Time Setup
 If the interpreter the lab runs in cannot import ``jupyterlab``, PyBreeze first
 installs it there with ``pip install -U jupyterlab jupyter_server``. A status label shows the progress.
 
-The lab's server runs without a token, so it is safe only while nothing in the page can
-drive it. When the interpreter has a JupyterLab release before 4.5.10, or 4.6.0 or 4.6.1,
+The lab's server listens on this machine only and asks for a token made for each launch,
+which the tab's view sends by itself: another program or another account on the machine
+cannot use the server without it. A lab link opened in the system's browser therefore meets
+the login page there. A page inside the lab is already signed in, so when the interpreter has a JupyterLab release before 4.5.10, or 4.6.0 or 4.6.1,
 or a jupyter_server before 2.20.0 (releases with a known vulnerability a page could use),
 the same command upgrades them first, and the status label names what is upgraded. If
 the upgrade fails (offline, say), the lab still starts with what is there, and a warning

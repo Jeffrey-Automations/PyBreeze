@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import secrets
 import socket
 import subprocess
 import tempfile
@@ -27,8 +28,8 @@ _JUPYTER_VERSIONS = (
     "import importlib.metadata as m; "
     "print('\\n'.join(next((d.version for d in m.distributions(name=n)), '') for n in ('jupyterlab', 'jupyter_server')))"
 )
-# The releases, as [lowest, first fixed), with a flaw a page could use to drive
-# the tab's server, which has no token: jupyterlab before 4.5.10, and 4.6.0 and
+# The releases, as [lowest, first fixed), with a flaw a page inside the lab,
+# which is signed in to the tab's server, could use to drive it: jupyterlab before 4.5.10, and 4.6.0 and
 # 4.6.1 (CVE-2026-42557, CVE-2026-73415, CVE-2026-73417); jupyter_server before
 # 2.20.0 (CVE-2026-5422, CVE-2026-44727)
 _VULNERABLE_RELEASES = {
@@ -39,6 +40,12 @@ _VULNERABLE_RELEASES = {
 _PIP_TIMEOUT_SECONDS = 300
 # The server listens on localhost; the port is checked, and polled, on IPv4 loopback
 _LOOPBACK = "127.0.0.1"
+
+
+# How many random bytes the server's token is made from
+_TOKEN_BYTES = 32
+# The environment variable jupyter_server reads its token from
+_TOKEN_VARIABLE = "JUPYTER_TOKEN"  # noqa: S105  # nosec B105 - a variable's name, not a credential
 
 
 def find_free_port() -> int:
@@ -147,6 +154,11 @@ class JupyterLauncherThread(QThread):
         self._process_lock = threading.Lock()
         # The server's output, kept in a file rather than a pipe
         self._output = None
+        # The token this launch's server asks for, and the tab's view sends. A
+        # new one each launch: the loopback bind keeps other machines out, not
+        # the other accounts of a shared one, which reached a kernel running as
+        # the IDE's user while the server had no token.
+        self.token = secrets.token_urlsafe(_TOKEN_BYTES)
         self.startup_timeout = startup_timeout
 
     def run(self):
@@ -208,12 +220,15 @@ class JupyterLauncherThread(QThread):
         """Start the server on *port*, its output going to ``self._output``.
 
         It binds to localhost only (CLAUDE.md, Security > JupyterLab); shell=False.
-        The bind address is pinned explicitly: with token and password empty,
-        the loopback-only binding is the sole barrier, so this never relies on
-        jupyter's default staying localhost. No wildcard origin: a loopback bind
-        does not stop a browser, and with the origin open any page the user
-        visits could drive this server's API and kernel sockets. The view this
-        serves loads from the same origin, so it needs nothing relaxed.
+        The bind address is pinned explicitly, so this never relies on jupyter's
+        default staying localhost. No wildcard origin: a loopback bind does not
+        stop a browser, and with the origin open any page the user visits could
+        reach this server. The view this serves loads from the same origin, so it
+        needs nothing relaxed.
+
+        The server asks for this launch's token. It is given in the environment
+        (``JUPYTER_TOKEN``), not as an argument: another account on the machine
+        can read a process's arguments, and that account is who the token is for.
         """
         return subprocess.Popen([  # nosec B603  # nosemgrep  # noqa: S603
             python_exe,
@@ -225,16 +240,15 @@ class JupyterLauncherThread(QThread):
             # A port taken since it was found fails at once: the server moved
             # to the next free one, and the tab waited on (or loaded) this one
             "--ServerApp.port_retries=0",
-            # No token and no password: jupyter_server 2's names, and 1.x's,
-            # which 2 still reads with a deprecation warning. Only the old ones
-            # left a server that drops them making a token of its own.
-            "--IdentityProvider.token=",
+            # No password, under jupyter_server 2's name and 1.x's, which 2
+            # still reads: the token below is the one way in. No token argument
+            # either, so the one in the environment is the one used.
             "--PasswordIdentityProvider.hashed_password=",
-            "--ServerApp.token=",
             "--ServerApp.password=",
             "--ServerApp.disable_check_xsrf=True",
         ], stdout=self._output, stderr=subprocess.STDOUT, text=True,
-            env=child_environment(), creationflags=no_window_creationflags())
+            env={**child_environment(), _TOKEN_VARIABLE: self.token},
+            creationflags=no_window_creationflags())
 
     @staticmethod
     def _port_open(port: int) -> bool:
