@@ -34,8 +34,9 @@ their output reaches the UI through Queue + QTimer.
 | `pybreeze/pybreeze_ui/jupyter_lab_gui/`, `show_code_window/`, `syntax/` | JupyterLab tab; `CodeWindow` subprocess output window; automation keyword highlighting |
 | `pybreeze/pybreeze_ui/design/` | The design system PyBreeze's own panels are built from: `tokens.py` (gaps, text and icon sizes in ems, a state's theme colour), `flow_layout.py` (a row that wraps), `panels.py` (`Panel`, `StatusLine`, `wrapping_row`) |
 | `pybreeze/pybreeze_ui/navigation/` | The navigation panel: `navigation_model.py` reads the menus and the tool table into five categories, `navigation_dock.py` shows them as a searchable tree (`NavigationPanel`): a view of the side bar of JEditor's shell with an icon in its activity bar, or, with a JEditor whose window has no shell, in a dock at the left (`NavigationDock`) |
-| `pybreeze/pybreeze_ui/mcp_gui/` | The MCP client tab: `mcp_client_gui.py` (connecting, asking before a call, cancelling, the session's log), `mcp_server_panel.py` (the user's servers and the project's), `mcp_profile_dialog.py`, `mcp_panels.py` (tools, resources, prompts, calls), `mcp_worker.py` (one blocking call on a `KeptThread`) |
+| `pybreeze/pybreeze_ui/mcp_gui/` | The MCP client tab: `mcp_client_gui.py` (connecting, asking before a call, cancelling, reading a changed list again, the session's log), `mcp_server_panel.py` (the user's servers and the project's), `mcp_profile_dialog.py`, `mcp_panels.py` (tools, resources, prompts, calls), `mcp_worker.py` (one blocking call on a `KeptThread`) |
 | `pybreeze/pybreeze_ui/report_gui/` | The report viewer tab (`report_viewer_gui.py`): several runs as one tree, a filter bar, the selected result's details, output, attachments and own record, and export |
+| `pybreeze/pybreeze_ui/local_endpoint.py` | `LocalEndpointGate`: asks before an AI panel sends to an address on this machine or the private network, and remembers the answer for the panel's life |
 | `pybreeze/pybreeze_ui/thread_keeper.py` | `let_run_out()`: a worker `QThread` whose widget closed is kept until it ends instead of being waited for |
 | `pybreeze/pybreeze_ui/gui_thread_gc.py` | `GuiThreadGarbageCollector`: automatic garbage collection off, collected on a GUI-thread timer instead (installed by `start_editor()`) |
 | `pybreeze/extend/process_executor/` | Subprocess isolation layer: `TaskProcessManager`, `process_executor_utils.py`, `FileRunnerProcess`, `queue_pump.py`, `run_notice.py`, and `test_pioneer/` and `prthinker/` (the other automation packages run through `build_process()` from their menus) |
@@ -58,7 +59,10 @@ The layers are presentation (`pybreeze_ui/`), then execution (`extend/`), then f
   `exe/start_pybreeze.py` start the IDE only under `if __name__ == "__main__":` with
   `multiprocessing.freeze_support()`: in the packaged executable the regex tester runs patterns in
   a spawned process, which re-runs the executable. From source it runs them in a plain worker script
-  (`python -I -S -c`), so a launch script without the guard is safe.
+  (`python -I -S -c`), so a launch script without the guard is safe. Both scripts first ask
+  `extend/language_server/packaged_entry.served_instead()`: started with `--action-language-server`
+  as its first argument the process is the action language server and opens no window, which is how
+  a packaged build, having no interpreter of its own, runs the server.
 - **The action language server**: `python -m pybreeze.extend.language_server [--interpreter <python>]
   [--language <JEditor's name for it>]` speaks the Language Server Protocol on standard input and output
   for WebRunner, AutoControl and LoadDensity scripts (`.json`): `initialize`, `textDocument/didOpen`,
@@ -116,7 +120,9 @@ python -m pybreeze → start_editor() → QApplication → open_main_window() �
 
 Before PySide6 is imported, `main_ui.py` sets `LOCUST_SKIP_MONKEY_PATCH` (to `IDE_ONLY`, unless the user
 set it) to keep locust's gevent patching away from Qt. The processes the IDE starts get
-`subprocess_util.child_environment()`, which leaves it out: a load test needs the patching.
+`subprocess_util.child_environment()`, which leaves it out: a load test needs the patching. The processes
+JEditor starts itself (Run Program, Run Debugger, shell, terminal, test panel) get the same function
+through `je_editor.set_child_environment_provider`, a hook JEditor has after 1.0.34 (§6).
 
 **Run an automation script**
 
@@ -236,7 +242,10 @@ MCP Client → Calls → Open in Report Viewer → ReportViewerGUI.show_report(M
 
 ## 6. Cross-project boundaries
 
-- **JEditor (upstream)**: `PyBreezeMainWindow` subclasses `je_editor.EditorMain` in extend mode
+- **JEditor (upstream)**: PyBreeze registers `child_environment` with
+  `je_editor.set_child_environment_provider` when JEditor has it (`main_ui.give_jeditor_the_child_environment()`),
+  and assigns `python_compiler` through a property of its own, relying on JEditor setting that name as a
+  plain attribute. `PyBreezeMainWindow` subclasses `je_editor.EditorMain` in extend mode
   and calls `super().__init__(debug_mode, show_system_tray_ray, extend=True)`. `pybreeze/__init__.py`
   re-exports JEditor's plugin API. Everything else PyBreeze takes from the top level is in
   je_editor's `__all__`, except for these names, which it imports from module paths JEditor has not
@@ -361,6 +370,8 @@ MCP Client → Calls → Open in Report Viewer → ReportViewerGUI.show_report(M
 - Every outbound request to a user URL passes SSRF validation (`utils/network/url_validation.py`)
   with timeouts and size caps, and connects through `utils/network/public_http.py`, which connects
   only to the addresses it checks as it connects, trying each in turn (§ Security › Network).
+  The AI panels may reach a loopback or private address the user was shown and allowed
+  (`pybreeze_ui/local_endpoint.py`); the connection is checked against exactly those addresses.
 - SSH uses the interactive host-key policy, never auto-add (§ Security › SSH).
 - Work that waits on a network — an AI review request, a diagram's image downloads, an SSH
   connect, an SFTP listing or transfer — runs on a

@@ -58,6 +58,14 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | ID | Date | Title | Tags | Batch |
 |---|---|---|---|---|
+| U-20261116-01 | 2026-11-16 | JEditor's own runs get the child environment; the Variable Inspector works upstream | #done #jeditor #process | [2026-11](2026-11.md) |
+| U-20261115-10 | 2026-11-15 | The editor follows the interpreter chosen under Python Env | #done #lsp | [2026-11](2026-11.md) |
+| U-20261115-09 | 2026-11-15 | A packaged build runs the language server from its own executable | #done #lsp #packaging | [2026-11](2026-11.md) |
+| U-20261115-08 | 2026-11-15 | The MCP tab follows a server that changes what it offers | #done #mcp #ui | [2026-11](2026-11.md) |
+| U-20261115-07 | 2026-11-15 | AI panels may use a local endpoint after asking | #done #security #ai | [2026-11](2026-11.md) |
+| U-20261115-06 | 2026-11-15 | prthinker key fields for Gemini, Cohere and Mistral | #done #prthinker | [2026-11](2026-11.md) |
+| U-20261115-05 | 2026-11-15 | The embedded JupyterLab asks for a token | #done #security #jupyter | [2026-11](2026-11.md) |
+| U-20261115-04 | 2026-11-15 | Dependencies declared and pinned | #done #deps #security | [2026-11](2026-11.md) |
 | U-20261115-03 | 2026-11-15 | progress.md rewritten in Traditional Chinese; twelve items closed | #decision #docs | [2026-11](2026-11.md) |
 | U-20261115-02 | 2026-11-15 | Main window screenshots and UI overview for the new shell | #docs #ui | [2026-11](2026-11.md) |
 | U-20261115-01 | 2026-11-15 | Navigation as a side bar view of JEditor's new shell | #migration #ui #jeditor | [2026-11](2026-11.md) |
@@ -723,7 +731,7 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | File | Period | Entries |
 |---|---|---:|
-| [2026-11.md](2026-11.md) | 2026-11 | 5 |
+| [2026-11.md](2026-11.md) | 2026-11 | 13 |
 | [2026-09.md](2026-09.md) | 2026-09 | 218 |
 | [2026-09-b.md](2026-09-b.md) | 2026-09 | 120 |
 | [2026-09-c.md](2026-09-c.md) | 2026-09 | 115 |

@@ -15,23 +15,35 @@ from pybreeze.utils.network.http_client import (
     describe_request_error, succeeded,
     truncate_for_display,
 )
-from pybreeze.utils.network.public_http import overall_deadline, public_session
-from pybreeze.utils.network.url_validation import UnsafeURLError, validate_url
+from pybreeze.utils.network.public_http import approved_local_addresses, overall_deadline, public_session
+from pybreeze.utils.network.url_validation import LocalAddressNeedsApprovalError, UnsafeURLError, validate_url
 
 
 class SenderThread(QThread):
-    update_response = Signal(str, str)  # (filename, response)
+    """The review chain, one request a step, off the UI thread.
 
-    def __init__(self, files: list, code: str, url: str):
+    :param allowed_local: the addresses on this machine or the private network
+        the user allowed for this URL's host; nothing else non-public is reached
+    """
+
+    update_response = Signal(str, str)  # (filename, response)
+    # (host, addresses): refused, and the user may allow it; the "error" answer follows
+    local_endpoint = Signal(str, list)
+
+    def __init__(self, files: list, code: str, url: str, allowed_local: frozenset[str] = frozenset()):
         super().__init__()
+        self.setObjectName("CoTSenderThread")
         self.files = files
         self.code = code
         self.url = url
+        self.allowed_local = allowed_local
 
     def run(self):
         try:
-            validate_url(self.url)
+            validate_url(self.url, self.allowed_local)
         except UnsafeURLError as error:
+            if isinstance(error, LocalAddressNeedsApprovalError):
+                self.local_endpoint.emit(error.host, list(error.addresses))
             pybreeze_logger.error("CoT code review URL rejected: %r", error)
             self.update_response.emit("error", error_text(str(error)))
             return
@@ -39,7 +51,8 @@ class SenderThread(QThread):
         # sequential per-template POSTs to the same endpoint.
         session = public_session()
         try:
-            self._run_templates(session, self.code)
+            with approved_local_addresses(self.allowed_local):
+                self._run_templates(session, self.code)
         finally:
             session.close()
 

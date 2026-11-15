@@ -96,7 +96,7 @@ class TestTheRequestItself:
     def _run(self, monkeypatch, response=None, raises=None, method="GET"):
         from pybreeze.pybreeze_ui.connect_gui.url.ai_code_review_gui import ReviewRequestThread
 
-        monkeypatch.setattr(ai_code_review_gui, "validate_url", lambda url: url)
+        monkeypatch.setattr(ai_code_review_gui, "validate_url", lambda url, *_allowed: url)
         sent: list = []
 
         def request(sent_method, *_args, **_kwargs):
@@ -270,7 +270,7 @@ class TestWhileARequestIsInFlight:
     def test_a_url_sent_before_is_said_to_be_known(self, client, monkeypatch):
         class Started:
             def __init__(self, *_args) -> None:
-                self.answered = self.failed = self.finished = self
+                self.answered = self.failed = self.local_endpoint = self.finished = self
 
             def connect(self, _slot) -> None:
                 """Nothing arrives."""
@@ -332,6 +332,7 @@ class _Silent(QThread):
 
     answered = Signal(str)
     failed = Signal(str)
+    local_endpoint = Signal(str, list)
 
     def __init__(self, *_args) -> None:
         super().__init__()
@@ -453,7 +454,7 @@ class TestWhatTheAnswerLooksLike:
             headers: dict = {}
             encoding = "utf-8"
 
-        monkeypatch.setattr(ai_code_review_gui, "validate_url", lambda url: None)
+        monkeypatch.setattr(ai_code_review_gui, "validate_url", lambda url, *_allowed: None)
         monkeypatch.setattr(ai_code_review_gui, "public_session", lambda: _FakeSession(lambda *_a, **_k: Response()))
         monkeypatch.setattr(ai_code_review_gui, "read_capped_text", lambda response: "x" * 1_000_000)
         thread = ai_code_review_gui.ReviewRequestThread("POST", _A_URL, "code")

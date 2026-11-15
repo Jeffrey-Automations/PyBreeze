@@ -342,3 +342,34 @@ class TestSecretsStayOutOfTheLog:
     def test_the_rest_is_left_readable(self):
         assert loggable({**DEFAULT_SETTING, "repository": "owner/name"})["repository"] \
             == "owner/name"
+
+
+class TestTheKeysOfTheOtherBackends:
+    """Gemini, Cohere and Mistral had no key field: their keys had to be in the IDE's own environment."""
+
+    @pytest.mark.parametrize(("backend", "variable"), [
+        ("gemini", "PRTHINKER_GEMINI_API_KEY"), ("cohere", "PRTHINKER_COHERE_API_KEY"),
+        ("mistral", "PRTHINKER_MISTRAL_API_KEY")])
+    def test_a_key_typed_into_the_form_reaches_prthinker_under_its_variable(self, backend, variable):
+        from pybreeze.extend.prthinker_extend.prthinker_setting import DEFAULT_SETTING, environment_for
+
+        setting = {**DEFAULT_SETTING, "backend": backend, f"{backend}_api_key": " not-a-real-key "}
+
+        assert environment_for(setting)[variable] == "not-a-real-key"
+
+    def test_an_empty_field_leaves_the_variable_to_the_environment(self):
+        from pybreeze.extend.prthinker_extend.prthinker_setting import (
+            DEFAULT_SETTING, KEY_FROM_ENVIRONMENT, environment_for
+        )
+
+        given = environment_for({**DEFAULT_SETTING, "backend": "gemini"})
+
+        assert not set(KEY_FROM_ENVIRONMENT.values()) & set(given)
+
+    def test_they_are_kept_out_of_the_log(self):
+        from pybreeze.extend.prthinker_extend.prthinker_setting import DEFAULT_SETTING, loggable
+
+        shown = loggable({**DEFAULT_SETTING, "gemini_api_key": "not-a-real-key"})
+
+        assert shown["gemini_api_key"] == "(set)"
+

@@ -175,10 +175,22 @@ class TestSaving:
 
 
 class TestWhereABackendsKeyComesFrom:
-    """Gemini, Cohere and Mistral have no key field: the form says which variable holds it."""
+    """Gemini, Cohere and Mistral have a key field; left empty, the form says which variable holds the key."""
 
     @pytest.mark.parametrize("backend", ["gemini", "cohere", "mistral"])
-    def test_a_backend_with_no_key_field_names_its_variable(self, dialog, backend):
+    def test_their_keys_are_fields_shown_as_dots_and_stored(self, dialog, data_dir, backend):
+        from PySide6.QtWidgets import QLineEdit
+
+        field = dialog.editors[f"{backend}_api_key"]
+        assert field.echoMode() == QLineEdit.EchoMode.Password
+
+        field.setText("not-a-real-key")
+        dialog.save()
+
+        assert stored(data_dir)[f"{backend}_api_key"] == "not-a-real-key"
+
+    @pytest.mark.parametrize("backend", ["gemini", "cohere", "mistral"])
+    def test_a_backend_whose_key_may_come_from_the_environment_names_its_variable(self, dialog, backend):
         from pybreeze.extend.prthinker_extend.prthinker_setting import KEY_FROM_ENVIRONMENT
 
         dialog.editors["backend"].setCurrentText(backend)

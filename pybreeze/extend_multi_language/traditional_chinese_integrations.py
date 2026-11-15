@@ -52,6 +52,8 @@ TRADITIONAL_CHINESE_INTEGRATION_WORDS: dict[str, str] = {
     "mcp_client_connecting": "正在連線到 {name}...",
     "mcp_client_connected": "已連線到 {server}：{tools} 個工具、{resources} 個資源、{prompts} 個提示",
     "mcp_client_disconnected": "已中斷與 {name} 的連線",
+    "mcp_client_refreshing": "{name} 提供的項目有變動，正在重新讀取...",
+    "mcp_client_refreshed": "{server} 現在提供 {tools} 個工具、{resources} 個資源、{prompts} 個提示",
     "mcp_client_failed_with_log": "{reason}。伺服器記錄的最後一行：{line}",
     "mcp_client_arguments_not_object": "引數必須是 JSON 物件：用大括號包起來的名稱與值",
     "mcp_client_calling": "正在呼叫 {tool}...",

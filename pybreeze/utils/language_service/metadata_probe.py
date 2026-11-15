@@ -25,6 +25,7 @@ from pathlib import Path
 
 from pybreeze.utils.exception.exception_tags import (
     language_probe_failed_error,
+    language_probe_no_interpreter_error,
     language_probe_not_installed_error,
     language_probe_timeout_error,
 )
@@ -138,6 +139,10 @@ def read_metadata(
     :raises LanguageServiceException: when the framework is not installed there,
         fails to import, takes too long, or answers something that is not metadata
     """
+    if interpreter is None and getattr(sys, "frozen", False):
+        # A packaged build's own executable is the IDE, not a Python: started
+        # with the probe's arguments it would open another IDE
+        raise LanguageServiceException(language_probe_no_interpreter_error.format(framework=profile.framework))
     python = shutil.which(interpreter or sys.executable) or interpreter or sys.executable
     try:
         done = subprocess.run(  # nosec B603  # nosemgrep — fixed argument list, no shell

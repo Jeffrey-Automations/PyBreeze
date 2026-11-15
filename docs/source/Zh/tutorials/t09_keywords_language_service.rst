@@ -64,9 +64,11 @@ LoadDensity（ ``LD_...`` ）的腳本，任何支援 Language Server Protocol �
 - 沒有任何標示，也沒有補全：檔名必須是 ``.json``，而且安裝框架之後要重新啟動 PyBreeze。
   **Automation Keywords** 會對每個框架說明它的版本，或為什麼拿不到關鍵字。
 - 不是動作腳本的 JSON 檔，只會被告知它是不是 JSON。
-- 啟動 PyBreeze 之後才在 **Python Env** 換了直譯器：Automation Keywords 分頁會立刻跟上，
-  編輯器要重新啟動之後才會。
-- 打包版（執行檔，而不是 ``python -m pybreeze`` ）沒有語言伺服器。
+- 啟動 PyBreeze 之後才在 **Python Env** 換了直譯器：Automation Keywords 分頁與編輯器都會立刻跟上。
+  開著的 ``.json`` 檔會改接到新直譯器的語言伺服器，所以在讀取該直譯器關鍵字的一兩秒內，標示會暫時消失。
+- 打包版（執行檔，而不是 ``python -m pybreeze`` ）用它自己的執行檔來跑語言伺服器。關鍵字仍然來自某個
+  Python：專案資料夾裡的 ``venv`` 或 ``.venv``、在 **Python Env** 選的那一個，或 ``PATH`` 上的 ``python``。
+  都沒有的話， ``.json`` 檔只會被告知它是不是 JSON。
 
 下一步
 ------

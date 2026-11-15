@@ -1,8 +1,8 @@
 """The embedded JupyterLab: how its server is started, and that it goes when the tab does.
 
-The server runs with no token, so the loopback bind and the same-origin rule are
-what keep other software away from it; and it outlives its launcher thread, so the
-tab has to stop it by name.
+The server is bound to this machine, takes no other origin and asks for a token
+made for the launch; and it outlives its launcher thread, so the tab has to stop it
+by name.
 """
 from __future__ import annotations
 
@@ -72,24 +72,42 @@ class TestHowTheServerIsStarted:
 
         argv = launched[0].argv
         assert "--ServerApp.ip=localhost" in argv
-        # With no token, a wildcard origin would let any page the user visits
-        # drive this server's API and kernel sockets.
+        # A wildcard origin would let any page the user visits reach this server.
         assert not [arg for arg in argv if arg.startswith("--ServerApp.allow_origin")]
         thread.stop()
 
-    def test_it_takes_no_token_or_password_under_both_generations_of_names(self, app, launched):
-        # jupyter_server 2 reads IdentityProvider's; ServerApp's are 1.x's, which 2
-        # still reads with a deprecation warning. With only the old ones, a server
-        # that drops them makes a token of its own, and the tab gets a login page.
+    def test_it_asks_for_a_token_given_in_the_environment_not_the_arguments(self, app, launched):
+        # Another account on a shared machine reached a kernel running as the
+        # IDE's user while the server had no token; and that account can read a
+        # process's arguments, so the token is not among them.
+        thread = jupyter_lab_thread.JupyterLauncherThread()
+
+        thread.run()
+
+        server = launched[0]
+        assert server.options["env"]["JUPYTER_TOKEN"] == thread.token
+        assert not [arg for arg in server.argv if "token" in arg.lower()]
+        assert thread.token not in " ".join(server.argv)
+        thread.stop()
+
+    def test_it_takes_no_password_under_both_generations_of_names(self, app, launched):
+        # jupyter_server 2 reads PasswordIdentityProvider's; ServerApp's is 1.x's,
+        # which 2 still reads. The token is the one way in.
         thread = jupyter_lab_thread.JupyterLauncherThread()
 
         thread.run()
 
         argv = launched[0].argv
-        for flag in ("--IdentityProvider.token=", "--PasswordIdentityProvider.hashed_password=",
-                     "--ServerApp.token=", "--ServerApp.password="):
+        for flag in ("--PasswordIdentityProvider.hashed_password=", "--ServerApp.password="):
             assert flag in argv
         thread.stop()
+
+    def test_each_launch_has_a_token_of_its_own(self, app):
+        first = jupyter_lab_thread.JupyterLauncherThread()
+        second = jupyter_lab_thread.JupyterLauncherThread()
+
+        assert first.token != second.token
+        assert len(first.token) >= 32
 
     def test_it_runs_without_what_the_ide_set_for_itself(self, app, launched, monkeypatch):
         # The IDE keeps locust from patching it with gevent; a notebook's kernel

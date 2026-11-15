@@ -55,8 +55,10 @@ If it does not work
 - The second terminal fills with lines: that is ``http.server`` logging each request,
   as it should.
 - Users seem to run one after another when a locust script is started with the
-  editor's **Run Program** instead of this menu: use the Automation menu, which starts
-  the load test with the environment it needs.
+  editor's **Run Program** instead of this menu: that happens with JEditor 1.0.34 and
+  earlier, where the editor's own runs inherit a variable PyBreeze sets for itself. Use
+  the Automation menu, which starts the load test with the environment it needs; with a
+  newer JEditor, Run Program, Run Debugger, the shell and the terminal get it too.
 
 Next
 ----

@@ -156,6 +156,7 @@ A report is a file from somewhere: it is read as data (XML that declares a docum
 - **A call is asked about first**: the tool, the server and the arguments as they will be sent, with No as the default. Tick *Do not ask again* to trust one tool of one server. What a server says of its own tool ("changes nothing") is shown, not relied on.
 - **A server that comes with a project** (`.mcp.json` in the project folder) is listed, never started by itself: connecting to it shows its command and asks.
 - **Cancel** gives up a call on its way; a server that does not answer within its time limit is given up on; one that goes away is said so, with the last line of its own log. **Connect** again to start over.
+- **A server that changes what it offers** while it is connected (the protocol's `list_changed` notifications for tools, resources and prompts) is read again by itself, in the background, with no need to connect again. The pages are filled again around your work: the selected item, the arguments typed for it and the last result stay. A tool you trusted that the server has since described differently is asked about again.
 - **Calls** lists the session: when, which tool, how it ended, how long it took. **Export Session...** saves it as an execution report (JSON).
 
 Put keys and tokens in the server's environment variables, not in its command: their values are shown as dots, and are taken out of the log, of error messages and of exported sessions wherever they turn up. Servers are started as local programs (the protocol's standard-input-and-output transport).
@@ -237,7 +238,7 @@ As in the tools, Ctrl+Enter in AI Code Review, CoT Code Review or Skill Send pre
 
 ![AI code review client](images/ai_code_review.png)
 
-*Shown in the pre-send state.* Send a selection to an LLM endpoint (as the form field `code` in the body of a POST, the default, or a PUT; GET and DELETE send the URL alone), then accept or reject the suggestion — the tally is kept in `~/.pybreeze/response_stats.txt`. The URL is SSRF-validated, the connection goes only to the address that was checked, redirects are not followed, and the response body is size-capped before it reaches the panel. An endpoint on this machine or on a private network, such as a local model server, is therefore refused; CoT Code Review and Skill Send check their endpoint URL the same way.
+*Shown in the pre-send state.* Send a selection to an LLM endpoint (as the form field `code` in the body of a POST, the default, or a PUT; GET and DELETE send the URL alone), then accept or reject the suggestion — the tally is kept in `~/.pybreeze/response_stats.txt`. The URL is SSRF-validated, the connection goes only to the address that was checked, redirects are not followed, and the response body is size-capped before it reaches the panel. An endpoint on this machine or on a private network, such as a local model server (Ollama, LM Studio), is asked about first: the question names the host and the addresses it resolves to, No is the default, and on a Yes the request goes to exactly those addresses. The answer is kept for that host until the panel is closed and is never written to disk. Link-local addresses (the cloud metadata service among them) and every other non-public address are still refused. CoT Code Review and Skill Send check their endpoint URL, and ask, the same way.
 
 ### Chain-of-Thought Code Review (prthinker)
 
@@ -245,7 +246,7 @@ Run the [prthinker](https://github.com/JE-Chen/Code-Review-Framework-Combining-L
 
 ![prthinker settings](images/prthinker_setting.png)
 
-One settings form holds the inference backend (`remote`, `local`, OpenAI-compatible, Anthropic, Gemini, Cohere, Mistral, `claude-cli`, `codex-cli`), the code host (GitHub / GitLab / Gitea) and the repository. **Keys and tokens are handed to the review as environment variables, never on a command line** where a process list would show them — and they are masked in logs. The model name goes to whichever backend is chosen. Gemini, Cohere and Mistral have no key field: chosen, the form names the variable prthinker reads their key from (`PRTHINKER_GEMINI_API_KEY`, `PRTHINKER_COHERE_API_KEY`, `PRTHINKER_MISTRAL_API_KEY`), which is set before PyBreeze starts. Rule retrieval (RAG) is `off` unless set to `remote`, which asks the prthinker server's `/rag`: prthinker's local rule index ships with its repository, not with the package installed from it. The review runs with the interpreter chosen in `Python Env`, so PyBreeze itself can stay on an older Python than the 3.12 prthinker needs.
+One settings form holds the inference backend (`remote`, `local`, OpenAI-compatible, Anthropic, Gemini, Cohere, Mistral, `claude-cli`, `codex-cli`), the code host (GitHub / GitLab / Gitea) and the repository. **Keys and tokens are handed to the review as environment variables, never on a command line** where a process list would show them — and they are masked in logs. The model name goes to whichever backend is chosen. Gemini, Cohere and Mistral have a key field each as well; left empty, prthinker reads the key from the environment PyBreeze was started in, and the form names the variable (`PRTHINKER_GEMINI_API_KEY`, `PRTHINKER_COHERE_API_KEY`, `PRTHINKER_MISTRAL_API_KEY`). Rule retrieval (RAG) is `off` unless set to `remote`, which asks the prthinker server's `/rag`: prthinker's local rule index ships with its repository, not with the package installed from it. The review runs with the interpreter chosen in `Python Env`, so PyBreeze itself can stay on an older Python than the 3.12 prthinker needs.
 
 ### CoT Prompt Editor
 
@@ -283,7 +284,7 @@ Loaded plugins appear under their own **Plugins** menu with an About entry and o
 - **English** (default)
 - **Traditional Chinese** (繁體中文)
 
-Menus, dialogs, the reasons a tool refuses its input and the run window's own notices (`[Error] …`, `[Run] …`) all follow the chosen language. Both dictionaries carry the same 995 keys, and a test enforces that parity so a new string can never land in one language only. English and Traditional Chinese are the languages PyBreeze maintains. The Language menu also lists JEditor's Japanese (日本語) and Simplified Chinese (简体中文), which PyBreeze passes on without translating: picked, JEditor's own menus change and PyBreeze's strings stay in English. Further languages can be added via translation plugins.
+Menus, dialogs, the reasons a tool refuses its input and the run window's own notices (`[Error] …`, `[Run] …`) all follow the chosen language. Both dictionaries carry the same 1003 keys, and a test enforces that parity so a new string can never land in one language only. English and Traditional Chinese are the languages PyBreeze maintains. The Language menu also lists JEditor's Japanese (日本語) and Simplified Chinese (简体中文), which PyBreeze passes on without translating: picked, JEditor's own menus change and PyBreeze's strings stay in English. Further languages can be added via translation plugins.
 
 ---
 
@@ -500,9 +501,13 @@ PyBreeze/
 | `je_load_density` | Load and stress testing |
 | `je-mail-thunder` | Email automation |
 | `automation-file` | File operation automation |
-| `test_pioneer` | YAML-based test framework |
-| `paramiko` | SSH client support |
-| `jupyterlab` | Integrated notebook environment |
+| `test_pioneer` (0.1.34 or later) | YAML-based test framework |
+| `paramiko` (5.1.0) | SSH client support |
+| `jupyterlab` (4.6.6), `jupyter_server` (2.21.1) | Integrated notebook environment |
+| `requests` (2.34.2), `urllib3` (2.8.0) | The HTTP requests of the built-in tools and the AI panels |
+| `cryptography` (50.0.2) | Reading SSH private keys |
+| `qt-material` (2.17) | The Material window themes |
+| `gitpython` (3.1.60 or later) | The editor's Git features |
 
 ### Development
 

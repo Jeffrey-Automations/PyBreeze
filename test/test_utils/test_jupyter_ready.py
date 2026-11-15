@@ -544,7 +544,10 @@ class TestTheTab:
         tab.load_lab("http://localhost:58888/lab")  # a second ready, with no status left to take down
 
         assert tab.status_label is None
-        assert loaded == ["http://localhost:58888/lab", "http://localhost:58888/lab"]
+        # The view's first request carries the launch's token; the page keeps the plain address
+        with_token = f"http://localhost:58888/lab?token={tab.launcher.token}"
+        assert loaded == [with_token, with_token]
+        assert tab.lab_page.lab_url.toString() == "http://localhost:58888/lab"
         assert tab.browser.isVisibleTo(tab)
         tab.close()  # deleted on close; the delete is carried out here, not at exit
         QCoreApplication.sendPostedEvents(tab, QEvent.Type.DeferredDelete)

@@ -55,7 +55,7 @@ class FakeSession:
 
 def _run(monkeypatch, answer) -> tuple[list[str], list[str]]:
     """Run one request against *answer* (a response, or an exception to raise)."""
-    monkeypatch.setattr(skills_send_gui, "validate_url", lambda url: url)
+    monkeypatch.setattr(skills_send_gui, "validate_url", lambda url, *_allowed: url)
 
     def post(*_args, **_kwargs):
         if isinstance(answer, Exception):

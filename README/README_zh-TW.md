@@ -156,6 +156,7 @@ python -m pybreeze.utils.header_tools.header_sarif response-headers.txt -o heade
 - **呼叫前會先詢問**：顯示工具、伺服器與實際要送出的引數，預設是「否」。勾選「不再詢問」可以信任某個伺服器的某個工具。伺服器對自己工具的說法（「不會更動任何東西」）只會顯示出來，不會被當成依據。
 - **隨專案而來的伺服器**（專案資料夾裡的 `.mcp.json`）會列出來，但不會自己啟動：連線時會顯示它的指令並詢問。
 - **取消**可以放棄進行中的呼叫；伺服器沒有在時限內回應就放棄；伺服器結束時會告知，並附上它自己記錄的最後一行。再按一次**連線**就能重新開始。
+- **伺服器在連線中變更它提供的項目**時（協定對工具、資源、提示的 `list_changed` 通知），分頁會自己在背景重新讀取，不必重新連線。各頁會繞著你手上的工作重新填入：選取的項目、為它輸入的引數與上一次的結果都會留著。你信任過、但伺服器後來改了說明的工具，會再詢問一次。
 - **呼叫紀錄**列出這次工作階段：時間、工具、結果、花了多久。**匯出這次工作階段...** 會把它存成執行報告（JSON）。
 
 金鑰與 token 請放在伺服器的環境變數裡，不要放在指令裡：它們的值以圓點顯示，而且不論出現在哪裡，都會從記錄檔、錯誤訊息與匯出的工作階段中去除。伺服器以本機程式的方式啟動（協定的標準輸入輸出傳輸）。
@@ -237,7 +238,7 @@ python -m pybreeze.extend.language_server [--interpreter /path/to/python] [--lan
 
 ![AI 程式碼審查用戶端](../images/ai_code_review.png)
 
-*畫面為送出前的狀態。* 把選取的程式碼送到 LLM 端點（以 POST（預設）或 PUT 送出，程式碼放在本文的表單欄位 `code`；GET 與 DELETE 只送出 URL），再接受或拒絕建議——統計會記錄在 `~/.pybreeze/response_stats.txt`。URL 會經過 SSRF 驗證，連線只會連到檢查過的位址，不跟隨重新導向，回應本文在送進面板前也有大小上限。因此本機或私有網路上的端點（例如在本機跑的模型伺服器）會被拒絕；CoT Code Review 與 Skill Send 也用同樣的方式檢查端點 URL。
+*畫面為送出前的狀態。* 把選取的程式碼送到 LLM 端點（以 POST（預設）或 PUT 送出，程式碼放在本文的表單欄位 `code`；GET 與 DELETE 只送出 URL），再接受或拒絕建議——統計會記錄在 `~/.pybreeze/response_stats.txt`。URL 會經過 SSRF 驗證，連線只會連到檢查過的位址，不跟隨重新導向，回應本文在送進面板前也有大小上限。本機或私有網路上的端點（例如在本機跑的模型伺服器 Ollama、LM Studio）會先詢問：問題會列出主機與它解析到的位址，預設為「否」，選「是」之後請求只會送到這些位址。答案在面板關閉前對該主機有效，不會寫進磁碟。Link-local 位址（包含雲端的 metadata 服務）與其他非公開位址仍然一律拒絕。CoT Code Review 與 Skill Send 也用同樣的方式檢查端點 URL 並詢問。
 
 ### 思維鏈程式碼審查（prthinker）
 
@@ -245,7 +246,7 @@ python -m pybreeze.extend.language_server [--interpreter /path/to/python] [--lan
 
 ![prthinker 設定](../images/prthinker_setting.png)
 
-一張設定表就包含推論後端（`remote`、`local`、OpenAI 相容、Anthropic、Gemini、Cohere、Mistral、`claude-cli`、`codex-cli`）、程式碼託管平台（GitHub／GitLab／Gitea）與儲存庫。**金鑰與權杖以環境變數交給審查，絕不放在命令列上**——那裡會被行程清單看到——而且在日誌中會被遮蔽。模型名稱會交給所選的後端。Gemini、Cohere、Mistral 沒有金鑰欄位：選了它們，設定表會說出 prthinker 從哪個環境變數讀取金鑰（`PRTHINKER_GEMINI_API_KEY`、`PRTHINKER_COHERE_API_KEY`、`PRTHINKER_MISTRAL_API_KEY`），須在啟動 PyBreeze 之前設定。規則檢索（RAG）預設為 `off`，設為 `remote` 時會向 prthinker 伺服器的 `/rag` 查詢：prthinker 的本機規則索引隨它的儲存庫提供，不在由它安裝的套件裡。審查以 `Python Env` 選定的直譯器執行，因此 PyBreeze 本身可以停留在比 prthinker 所需的 3.12 更舊的 Python 上。
+一張設定表就包含推論後端（`remote`、`local`、OpenAI 相容、Anthropic、Gemini、Cohere、Mistral、`claude-cli`、`codex-cli`）、程式碼託管平台（GitHub／GitLab／Gitea）與儲存庫。**金鑰與權杖以環境變數交給審查，絕不放在命令列上**——那裡會被行程清單看到——而且在日誌中會被遮蔽。模型名稱會交給所選的後端。Gemini、Cohere、Mistral 也各有一個金鑰欄位；留空時，prthinker 會從啟動 PyBreeze 的環境讀取金鑰，設定表會說出是哪個變數（`PRTHINKER_GEMINI_API_KEY`、`PRTHINKER_COHERE_API_KEY`、`PRTHINKER_MISTRAL_API_KEY`）。規則檢索（RAG）預設為 `off`，設為 `remote` 時會向 prthinker 伺服器的 `/rag` 查詢：prthinker 的本機規則索引隨它的儲存庫提供，不在由它安裝的套件裡。審查以 `Python Env` 選定的直譯器執行，因此 PyBreeze 本身可以停留在比 prthinker 所需的 3.12 更舊的 Python 上。
 
 ### CoT 提示詞編輯器
 
@@ -283,7 +284,7 @@ PyBreeze 沿用 JEditor 的外掛架構，會自動從工作目錄中的 `jedito
 - **English**（英文，預設）
 - **繁體中文**（Traditional Chinese）
 
-選單、對話框、工具拒絕輸入時說明的原因，以及執行視窗自己的訊息（`[錯誤] …`、`[執行] …`）都會跟著所選的語言顯示。兩份字典都有相同的 995 個鍵，並有測試強制兩者一致，因此新字串不可能只出現在其中一種語言。English 與繁體中文是 PyBreeze 自己維護的語言。語言選單另外列出 JEditor 的日文（日本語）與簡體中文（简体中文），PyBreeze 只是原樣提供、沒有翻譯：選了之後 JEditor 自己的選單會改變，PyBreeze 的字串則維持英文。其他語言可透過翻譯外掛加入。
+選單、對話框、工具拒絕輸入時說明的原因，以及執行視窗自己的訊息（`[錯誤] …`、`[執行] …`）都會跟著所選的語言顯示。兩份字典都有相同的 1003 個鍵，並有測試強制兩者一致，因此新字串不可能只出現在其中一種語言。English 與繁體中文是 PyBreeze 自己維護的語言。語言選單另外列出 JEditor 的日文（日本語）與簡體中文（简体中文），PyBreeze 只是原樣提供、沒有翻譯：選了之後 JEditor 自己的選單會改變，PyBreeze 的字串則維持英文。其他語言可透過翻譯外掛加入。
 
 ---
 
@@ -499,9 +500,13 @@ PyBreeze/
 | `je_load_density` | 負載與壓力測試 |
 | `je-mail-thunder` | 郵件自動化 |
 | `automation-file` | 檔案操作自動化 |
-| `test_pioneer` | 以 YAML 為基礎的測試框架 |
-| `paramiko` | SSH 用戶端支援 |
-| `jupyterlab` | 整合的筆記本環境 |
+| `test_pioneer`（0.1.34 以上） | 以 YAML 為基礎的測試框架 |
+| `paramiko`（5.1.0） | SSH 用戶端支援 |
+| `jupyterlab`（4.6.6）、`jupyter_server`（2.21.1） | 整合的筆記本環境 |
+| `requests`（2.34.2）、`urllib3`（2.8.0） | 內建工具與 AI 面板的 HTTP 請求 |
+| `cryptography`（50.0.2） | 讀取 SSH 私鑰 |
+| `qt-material`（2.17） | Material 視窗主題 |
+| `gitpython`（3.1.60 以上） | 編輯器的 Git 功能 |
 
 ### 開發
 

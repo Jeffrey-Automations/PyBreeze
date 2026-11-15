@@ -101,9 +101,9 @@ class TestSending:
         sent: list = []
 
         class Thread:
-            def __init__(self, url, text) -> None:
+            def __init__(self, url, text, *_allowed_local) -> None:
                 sent.append(text)
-                self.answered = self.error = self.finished = self
+                self.answered = self.error = self.local_endpoint = self.finished = self
 
             def connect(self, _slot) -> None:
                 """Nothing to connect to."""

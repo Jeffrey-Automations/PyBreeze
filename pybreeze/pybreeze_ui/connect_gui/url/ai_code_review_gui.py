@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
 )
 from je_editor import language_wrapper
 
+from pybreeze.pybreeze_ui.local_endpoint import LocalEndpointGate, has_ended
 from pybreeze.pybreeze_ui.run_shortcut import press_on_ctrl_enter
 from pybreeze.pybreeze_ui.thread_keeper import let_run_out
 from pybreeze.utils.app_dirs import pybreeze_data_dir
@@ -24,8 +25,8 @@ from pybreeze.utils.network.http_client import (
     describe_request_error, succeeded,
     truncate_for_display,
 )
-from pybreeze.utils.network.public_http import overall_deadline, public_session
-from pybreeze.utils.network.url_validation import UnsafeURLError, validate_url
+from pybreeze.utils.network.public_http import approved_local_addresses, overall_deadline, public_session
+from pybreeze.utils.network.url_validation import LocalAddressNeedsApprovalError, UnsafeURLError, validate_url
 from pybreeze.pybreeze_ui.exact_text import exact_text
 from pybreeze.pybreeze_ui.fixed_pitch import use_fixed_pitch_font
 
@@ -62,24 +63,33 @@ class ReviewRequestThread(QThread):
 
     The IDE must stay usable while an endpoint thinks: the request can take the
     connect timeout plus 30 s per read, and the body is streamed under a cap
-    after that. Only these two signals touch the UI, and they are delivered on
-    the UI thread.
+    after that. Only these signals touch the UI, and they are delivered on the
+    UI thread.
+
+    :param allowed_local: the addresses on this machine or the private network
+        the user allowed for this URL's host; nothing else non-public is reached
     """
 
     answered = Signal(str)
     failed = Signal(str)
+    # (host, addresses): refused, and the user may allow it; ``failed`` follows
+    local_endpoint = Signal(str, list)
 
-    def __init__(self, method: str, url: str, code_text: str) -> None:
+    def __init__(self, method: str, url: str, code_text: str,
+                 allowed_local: frozenset[str] = frozenset()) -> None:
         super().__init__()
+        self.setObjectName("ReviewRequestThread")
         self._method = method
         self._url = url
         self._code_text = code_text
+        self._allowed_local = allowed_local
 
     def run(self) -> None:
         try:
-            validate_url(self._url)
+            self._check_url()
             # The whole request, headers included: a read timeout restarts with every byte
-            with overall_deadline(DEFAULT_MAX_READ_SECONDS), public_session() as session:
+            with approved_local_addresses(self._allowed_local), \
+                    overall_deadline(DEFAULT_MAX_READ_SECONDS), public_session() as session:
                 response = self._send(session)
                 body = read_capped_text(response)
             if succeeded(response):
@@ -95,6 +105,14 @@ class ReviewRequestThread(QThread):
             # Not %r: a requests error carries the whole URL, which may hold a token.
             pybreeze_logger.error("AI code review request failed: %s", type(error).__name__)
             self.failed.emit(error_text(describe_request_error(error)))
+
+    def _check_url(self) -> None:
+        """Validate the URL; a refusal the user may lift is announced before it is raised."""
+        try:
+            validate_url(self._url, self._allowed_local)
+        except LocalAddressNeedsApprovalError as error:
+            self.local_endpoint.emit(error.host, list(error.addresses))
+            raise
 
     def _send(self, session: requests.Session) -> requests.Response:
         """Send the request with the chosen method, code in the body where there is one."""
@@ -152,6 +170,8 @@ class AICodeReviewClient(QWidget):
 
         # 目前在飛的請求 / The request in flight, if any
         self.request_thread: ReviewRequestThread | None = None
+        # What the user allowed this panel to reach on this machine or the private network
+        self.local_gate = LocalEndpointGate(self)
         # Store under the user's home (like the SSH known_hosts) so the data is
         # stable regardless of which directory the IDE was launched from.
         data_dir = pybreeze_data_dir()
@@ -275,9 +295,10 @@ class AICodeReviewClient(QWidget):
 
         self.send_button.setEnabled(False)
         self._set_verdict_enabled(False)
-        self.request_thread = ReviewRequestThread(method, url, code_content)
+        self.request_thread = ReviewRequestThread(method, url, code_content, self.local_gate.allowed_for(url))
         self.request_thread.answered.connect(self.on_answered)
         self.request_thread.failed.connect(self.on_failed)
+        self.request_thread.local_endpoint.connect(self.local_gate.note)
         # Not from answered/failed: a thread that ends any other way emits
         # neither, and Send stayed greyed out until the panel was reopened.
         self.request_thread.finished.connect(self._on_request_finished)
@@ -306,8 +327,14 @@ class AICodeReviewClient(QWidget):
             f"{self.word_dict.get('ai_code_review_gui_message_error')}: {message}")
 
     def _on_request_finished(self) -> None:
-        """Let the next request be sent, however this one ended."""
+        """Let the next request be sent, however this one ended.
+
+        One refused for a local address is asked about here, with the thread
+        over, and sent again on a yes.
+        """
         self.send_button.setEnabled(True)
+        if self.local_gate.confirm_pending() and has_ended(self.request_thread):
+            self.send_request()
 
     def _set_verdict_enabled(self, enabled: bool) -> None:
         self.accept_button.setEnabled(enabled)
@@ -322,7 +349,7 @@ class AICodeReviewClient(QWidget):
         """
         thread = self.request_thread
         if thread is not None and thread.isRunning():
-            let_run_out(thread, thread.answered, thread.failed)
+            let_run_out(thread, thread.answered, thread.failed, thread.local_endpoint)
         super().closeEvent(event)
 
     def record_url(self, url: str) -> bool:
