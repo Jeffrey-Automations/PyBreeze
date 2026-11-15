@@ -133,6 +133,7 @@ json_edit_not_a_boolean_error: str = "{text!r} is not a boolean: write true or f
 language_probe_not_installed_error: str = "{framework} is not installed for the interpreter that runs the scripts"
 language_probe_timeout_error: str = "{framework} took longer than {seconds} seconds to list its keywords"
 language_probe_failed_error: str = "{framework} could not list its keywords ({reason})"
+language_probe_no_interpreter_error: str = "No Python was found to ask {framework} for its keywords"
 language_metadata_shape_error: str = (
     "what {framework} says about its keywords is not in a form this version of PyBreeze reads")
 

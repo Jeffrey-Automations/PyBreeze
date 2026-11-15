@@ -7,6 +7,9 @@
 
 ## 實體驗收
 
+- **#153** 打包版的語言服務還沒有在真正的打包執行檔上跑過（U-20261115-09）。打包版現在以 `PyBreeze.exe --action-language-server` 啟動自己當語言伺服器，
+  從原始碼以同一個進入點驗過（`test_language_server_launch.py`），但沒有實際建出執行檔。要用 `exe/` 的設定建一次，開一個動作腳本（`.json`）確認：
+  有診斷與關鍵字補全、沒有多開一個 IDE 視窗、關閉 IDE 後沒有留下 `PyBreeze.exe` 行程；在沒有任何 Python 的機器上，`.json` 檔仍會被告知是不是 JSON。
 - **#152** 新版面還沒有在真正的螢幕上看過。導覽面板改成側邊欄的面板（U-20261115-01）之後，所有畫面都是以 offscreen 渲染擷取的。要在實機上確認：
   第一次啟動時側邊欄顯示導覽面板、活動列的指南針圖示可以切換、**檢視 ▸ 導覽** 有作用；切到檔案總管再關閉重開，會回到離開時的那個面板；
   JEditor Dark 與 JEditor Light 兩個主題下，PyBreeze 自己的工具分頁（cURL、HAR、JWT、Diff、SSH、AI、架構圖編輯器）文字與底色都看得清楚；
@@ -57,15 +60,9 @@
 - **#120** 〔阻塞〕〔已決定：讓宿主提供子程序的環境變數〕用 JEditor 的 Run Program、Run Debugger 或 shell 跑 locust 腳本時，HttpUser 一次只跑一個：那些程序沿用 IDE 自己的環境
   （`subprocess.Popen` 沒給 `env`，`code_exec.py`、`shell_exec.py`），裡面帶著 PyBreeze 設的 `LOCUST_SKIP_MONKEY_PATCH`；10 個使用者的 3 秒測試跑了三分鐘以上。
   PyBreeze 自己的執行都經過 `child_environment()` 拿掉值為 `subprocess_util.IDE_ONLY` 的變數。JEditor 要讓宿主能提供它啟動程序時用的環境。
-- **#129** 語言伺服器讀的是 IDE 啟動時那個直譯器的框架關鍵字（`PyBreezeMainWindow._offer_language_server()`）。之後從 Python 環境選單改選的直譯器，執行與 Automation Keywords 分頁會立刻採用，
-  編輯器的補全與診斷卻要重啟才會跟上：JEditor 的 `DEFAULT_SERVERS` 每個副檔名只有一個指令，也沒有任何東西通知 PyBreeze 直譯器換了。要在選擇的地方加一個掛點
-  （`build_venv_menu.py` 是 JEditor 的），再呼叫一次 `offer_to_jeditor()` 並重啟開著的 `.json` 分頁。
-
 ### PyBreeze 自己的功能
 
 - **#130** 〔決定〕JEditor 設定裡存的直譯器（`python_compiler`）每次啟動都被忘掉：`EditorMain.startup_setting()` 還原之後，`PyBreezeMainWindow.__init__` 又設成 `None`
   （`pybreeze/pybreeze_ui/editor_main/main_ui.py`）。拿掉那一行，執行、JupyterLab 分頁、prthinker 與語言伺服器就會從一開始用存下來的直譯器；但存下來的路徑可能已經不存在，要不要這樣做由擁有者決定。
 - **#131** 〔決定〕MCP 用戶端只支援標準輸入輸出的傳輸。協定的 HTTP 傳輸多半用在同一台機器上的伺服器，而對外請求的規則（CLAUDE.md，Network）拒絕 loopback 與私有位址。
   要提供的話，得先決定使用者填在伺服器設定裡的網址能不能是 loopback（JupyterLab 分頁自己的伺服器就是），以及請求要帶什麼送出。
-- **#128** 打包版（`exe/`）沒有動作腳本的語言服務：`sys.executable` 是應用程式本身，沒有直譯器可以啟動 `extend/language_server/__main__.py`，`launch.can_serve()` 為 false。
-  關鍵字探測在那裡仍然可用。缺的是啟動伺服器的方法：在打包的執行檔加第二個進入點（像 regex tester 的 worker），或用 PATH 上的直譯器並把 PyBreeze 的套件資料夾放進它的路徑。

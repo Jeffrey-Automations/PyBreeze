@@ -58,6 +58,8 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | ID | Date | Title | Tags | Batch |
 |---|---|---|---|---|
+| U-20261115-10 | 2026-11-15 | The editor follows the interpreter chosen under Python Env | #done #lsp | [2026-11](2026-11.md) |
+| U-20261115-09 | 2026-11-15 | A packaged build runs the language server from its own executable | #done #lsp #packaging | [2026-11](2026-11.md) |
 | U-20261115-08 | 2026-11-15 | The MCP tab follows a server that changes what it offers | #done #mcp #ui | [2026-11](2026-11.md) |
 | U-20261115-07 | 2026-11-15 | AI panels may use a local endpoint after asking | #done #security #ai | [2026-11](2026-11.md) |
 | U-20261115-06 | 2026-11-15 | prthinker key fields for Gemini, Cohere and Mistral | #done #prthinker | [2026-11](2026-11.md) |
@@ -728,7 +730,7 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | File | Period | Entries |
 |---|---|---:|
-| [2026-11.md](2026-11.md) | 2026-11 | 10 |
+| [2026-11.md](2026-11.md) | 2026-11 | 12 |
 | [2026-09.md](2026-09.md) | 2026-09 | 218 |
 | [2026-09-b.md](2026-09-b.md) | 2026-09 | 120 |
 | [2026-09-c.md](2026-09-c.md) | 2026-09 | 115 |

@@ -52,7 +52,7 @@ PyBreeze 是一個「自動化優先」的 Python IDE，建構在 **PySide6 + JE
    ┌─────────────────────────────────────────────────────────────────────────┐
    │ 基礎層 Foundation                                                        │
    │  pybreeze/utils/              21 個工具子套件（純邏輯，可單測）           │
-   │  pybreeze/extend_multi_language/  內建 i18n（英 / 繁中，各 1002 鍵）      │
+   │  pybreeze/extend_multi_language/  內建 i18n（英 / 繁中，各 1003 鍵）      │
    └─────────────────────────────────────────────────────────────────────────┘
                                     ▼
    外部子行程：python -m je_api_testka / je_auto_control / je_web_runner /
@@ -68,7 +68,7 @@ PyBreeze 是一個「自動化優先」的 Python IDE，建構在 **PySide6 + JE
 
 1. 取得（或建立）`QApplication`，裝上 `collect_garbage_on_gui_thread()`（`pybreeze_ui/gui_thread_gc.py`：關掉自動垃圾回收，改在 UI 執行緒上定時回收，見 §16）
 2. 建立 `PyBreezeMainWindow`，其 `__init__` 依序：
-   - `update_language_dict()` 併入 PyBreeze 的 1002 條翻譯——**必須在 `super().__init__` 之前**：JEditor 在那裡依設定挑啟動語言，英文以外的語言讀的是當下合併出來的一份副本，之後才加進去的字串它看不到，選單拿到 `None` 標題就讓 Qt 當掉（access violation）
+   - `update_language_dict()` 併入 PyBreeze 的 1003 條翻譯——**必須在 `super().__init__` 之前**：JEditor 在那裡依設定挑啟動語言，英文以外的語言讀的是當下合併出來的一份副本，之後才加進去的字串它看不到，選單拿到 `None` 標題就讓 Qt 當掉（access violation）
    - `super().__init__(..., extend=True)` — JEditor 在此已呼叫 `load_external_plugins()`，自動掃描 CWD 下的 `jeditor_plugins/`，也以 `startup_setting()` 套上存下的設定與 UI Style 主題
    - `show_only_warnings_in_code_result()`（`pybreeze_ui/code_result_logs.py`）— JEditor 剛把一個 `RedirectStdErr` 掛到當下每個 logger 上、收到的顯示在 Code Result；自動化套件 import 時把 root 設成 DEBUG，所以開檔就有 gitpython 的除錯訊息以紅字出現。把這個 handler 的門檻調到 WARNING，logger 本身的層級不動
    - 刪掉 JEditor 原本的 Help 選單
@@ -175,9 +175,10 @@ Template Method 定義的子行程生命週期：
 
 另一種由 IDE 啟動的行程，但不是執行器：它不跑使用者的腳本，而是回答編輯器對動作腳本（`.json`）的詢問（`docs/adr/0010`）。
 
-- **`launch.py`**(42) — `server_command(interpreter, language)` 組出啟動指令 `[sys.executable, <…/language_server/__main__.py>, --language …, --interpreter …]`；`offer_to_jeditor()` 把它寫進 JEditor 的 `DEFAULT_SERVERS[".json"]`（JEditor 的 `LspClient.start_for()` 依副檔名查這張表，用 `QProcess` 啟動）。`can_serve()`：打包版的 `sys.executable` 是 app 本身，沒有直譯器可以跑伺服器，就不提供。主視窗 `_offer_language_server()` 在選單建好後呼叫它（這時才知道啟動語言），並讓 JEditor 還原出來、已經開著 `.json` 的分頁重新 `start_language_server()`。
+- **`launch.py`**(44) — `server_command(interpreter, language)` 組出啟動指令：從原始碼執行時是 `[sys.executable, <…/language_server/__main__.py>, --language …, --interpreter …]`；打包版沒有直譯器（`sys.executable` 是 app 本身），改成 `[sys.executable, --action-language-server, --language …, --interpreter …]`，讓 app 自己當伺服器。`offer_to_jeditor()` 把它寫進 JEditor 的 `DEFAULT_SERVERS[".json"]`（JEditor 的 `LspClient.start_for()` 依副檔名查這張表，用 `QProcess` 啟動）。主視窗 `_offer_language_server()` 在選單建好後呼叫它（這時才知道啟動語言），並讓開著 `.json` 的分頁重新 `start_language_server()`；`PyBreezeMainWindow.python_compiler` 是 property，JEditor 的 Python Env 選單一指定新的直譯器就再呼叫一次：指令裡帶著直譯器，所以那些分頁會離開舊的伺服器、接上新的（沒有人用的舊伺服器由 JEditor 的連線表關掉）。`_script_interpreter()`：選定的直譯器，否則 `default_interpreter()`；打包版找不到 Python 時為 `None`，伺服器照樣提供（只回答是不是 JSON，並說明為什麼沒有關鍵字）。
+- **`packaged_entry.py`**(37) — `served_instead(argv)`：第一個引數是 `--action-language-server` 就執行 `server_main.main()` 並回傳結束碼，否則回 `None`（要開的是 IDE）。`pybreeze/__main__.py` 與 `exe/start_pybreeze.py` 在 `start_editor()` 之前先問它。不匯入 JEditor 或 Qt。
 - **`__main__.py`**(17) — 進入點。IDE 用**檔案路徑**啟動它而不是 `-m`：`-m` 會把行程的工作目錄放在 import path 最前面，而 IDE 的工作目錄是使用者開的專案，裡面若有一個叫 `pybreeze` 的套件就會被匯入。用路徑啟動時 `sys.path[0]` 是這個資料夾，進入點把它換成 PyBreeze 所在的資料夾。`python -m pybreeze.extend.language_server` 也能用（給其他編輯器）。
-- **`server_main.py`**(59) — `main(argv)`：`--interpreter`（執行腳本的 Python，預設是跑伺服器的這一個）、`--language`（JEditor 的語言名稱；`words_of()` 從 `supported_languages.MAINTAINED` 取該語言的字典，不是維護中的語言就用英文）。建立 `ActionLanguageServer`，對 `PROFILES` 的每個框架各給 `serve()` 一個工作 `ask_framework()`：在自己的執行緒上 `read_metadata()`，回傳「把結果交給伺服器」的那一步（`server.offer(metadata)` 或 `server.decline(framework, reason)`）。
+- **`server_main.py`**(59) — `main(argv)`：`--interpreter`（執行腳本的 Python，預設是跑伺服器的這一個；打包版沒給時 `read_metadata()` 不會拿 app 自己當 Python 去跑，直接回報 `language_probe_no_interpreter_error`）、`--language`（JEditor 的語言名稱；`words_of()` 從 `supported_languages.MAINTAINED` 取該語言的字典，不是維護中的語言就用英文）。建立 `ActionLanguageServer`，對 `PROFILES` 的每個框架各給 `serve()` 一個工作 `ask_framework()`：在自己的執行緒上 `read_metadata()`，回傳「把結果交給伺服器」的那一步（`server.offer(metadata)` 或 `server.decline(framework, reason)`）。
 
 實測：啟動後 0.3 秒回覆 `initialize`，2.7 秒內三個框架的關鍵字都到齊（WebRunner 0.9 秒、AutoControl 0.6 秒、LoadDensity 2.5 秒，平行）。
 
@@ -457,7 +458,7 @@ first_summary → first_code_review → judge_single_review ┐（評分前一�
 
 ## 13. `pybreeze/extend_multi_language/`
 
-`extend_english.py` 與 `extend_traditional_chinese.py` 各 1002 個鍵，`update_language_dict()` 把它們併進 `je_editor` 的字典，並把 `application_name`（「PyBreeze」）寫進 `language_wrapper.choose_language_dict` 裡每一個語言：這是 PyBreeze 唯一覆寫而非新增的 JEditor 鍵，日文、簡中等 PyBreeze 沒翻譯的語言自帶「JEditor」，不寫的話會蓋過英文退回值。`test_language_parity.py` 守住兩邊鍵值必須對齊，也檢查每個已註冊語言都解得出程式用到的每個鍵；`test_startup_language.py` 在子行程裡用存好的繁中／日文真的啟動主視窗。
+`extend_english.py` 與 `extend_traditional_chinese.py` 各 1003 個鍵，`update_language_dict()` 把它們併進 `je_editor` 的字典，並把 `application_name`（「PyBreeze」）寫進 `language_wrapper.choose_language_dict` 裡每一個語言：這是 PyBreeze 唯一覆寫而非新增的 JEditor 鍵，日文、簡中等 PyBreeze 沒翻譯的語言自帶「JEditor」，不寫的話會蓋過英文退回值。`test_language_parity.py` 守住兩邊鍵值必須對齊，也檢查每個已註冊語言都解得出程式用到的每個鍵；`test_startup_language.py` 在子行程裡用存好的繁中／日文真的啟動主視窗。
 
 `supported_languages.py`(88) 把「支援哪些語言」寫明白：`MAINTAINED`（`MaintainedLanguage`：JEditor 語言包裝器裡的 key、語言選單顯示的名稱、字典）是 PyBreeze 自己維護、每個鍵都有翻譯的語言，目前是 English 與繁體中文；`EDITOR_ONLY` 是 JEditor 自帶、PyBreeze 沒有加任何字串的日本語與简体中文（選了之後編輯器自己的選單會變，PyBreeze 的仍是英文，那不是 PyBreeze 的缺陷）；兩邊都不在的是翻譯外掛註冊的（`who_translates()` 回 `Owner.PLUGIN`）。字串屬於定義那個鍵的一方，兩邊只在 `REWORDED_JEDITOR_KEYS` 重疊（`application_name`、`plugin_browser_*`、`plugin_menu_*`：JEditor 的鍵，PyBreeze 在自己維護的語言裡用自己的說法）。`update_language_dict()` 照 `MAINTAINED` 逐一把字典併進 `choose_language_dict[key]`（JEditor 沒有那個語言時記 log、其餘照併）；`extend_english.py` 與 `extend_traditional_chinese.py` 因此只剩資料，不再 import JEditor。`test_supported_languages.py` 讀 JEditor 自己的語言清單：有一個語言兩邊都沒列、維護中的字典和第一份鍵不一樣、多出一個和 JEditor 重疊的鍵、三份 README 少寫任何一個語言在選單上的名稱，都會失敗。
 

@@ -59,7 +59,10 @@ The layers are presentation (`pybreeze_ui/`), then execution (`extend/`), then f
   `exe/start_pybreeze.py` start the IDE only under `if __name__ == "__main__":` with
   `multiprocessing.freeze_support()`: in the packaged executable the regex tester runs patterns in
   a spawned process, which re-runs the executable. From source it runs them in a plain worker script
-  (`python -I -S -c`), so a launch script without the guard is safe.
+  (`python -I -S -c`), so a launch script without the guard is safe. Both scripts first ask
+  `extend/language_server/packaged_entry.served_instead()`: started with `--action-language-server`
+  as its first argument the process is the action language server and opens no window, which is how
+  a packaged build, having no interpreter of its own, runs the server.
 - **The action language server**: `python -m pybreeze.extend.language_server [--interpreter <python>]
   [--language <JEditor's name for it>]` speaks the Language Server Protocol on standard input and output
   for WebRunner, AutoControl and LoadDensity scripts (`.json`): `initialize`, `textDocument/didOpen`,

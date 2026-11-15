@@ -17,12 +17,12 @@ environ["LOCUST_SKIP_MONKEY_PATCH"] = environ.get("LOCUST_SKIP_MONKEY_PATCH") or
 from PySide6.QtCore import QTimer, QCoreApplication, Qt
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QWidget
-from je_editor import EditorMain, EditorWidget, language_wrapper
+from je_editor import EditorMain, EditorWidget, JEditorExecException, language_wrapper
 from je_editor.pyside_ui.main_ui.dock.destroy_dock import DestroyDock
 from je_editor.pyside_ui.main_ui.save_settings.user_setting_file import user_setting_dict
 from qt_material import apply_stylesheet
 
-from pybreeze.extend.language_server.launch import ACTION_SCRIPT_SUFFIX, can_serve, offer_to_jeditor
+from pybreeze.extend.language_server.launch import ACTION_SCRIPT_SUFFIX, offer_to_jeditor
 from pybreeze.extend.process_executor.python_task_process_manager import default_interpreter
 from pybreeze.extend_multi_language.update_language_dict import update_language_dict
 from pybreeze.pybreeze_ui.code_result_logs import show_only_warnings_in_code_result
@@ -74,6 +74,25 @@ def _close_guarded(widget: QWidget, *steps) -> None:
 
 
 class PyBreezeMainWindow(EditorMain):
+
+    @property
+    def python_compiler(self) -> str | None:
+        """The interpreter chosen in the IDE for running scripts, ``None`` when none was.
+
+        JEditor's Python Env menu and its venv detection set it as a plain
+        attribute. It is a property here so that the choice reaches the action
+        language server: the editors' completion and diagnostics used to keep
+        the keywords of the interpreter the IDE started with until a restart.
+        """
+        return getattr(self, "_python_compiler", None)
+
+    @python_compiler.setter
+    def python_compiler(self, interpreter: str | None) -> None:
+        changed = interpreter != getattr(self, "_python_compiler", None)
+        self._python_compiler = interpreter
+        # Not before the window has offered the server once: JEditor sets this while it is still building
+        if changed and getattr(self, "_language_server_offered", False):
+            self._offer_language_server()
 
     def __init__(self, debug_mode: bool = False, show_system_tray_ray: bool = False, extend: bool = False) -> None:
         # PyBreeze's strings must be in JEditor's word dicts before EditorMain.__init__
@@ -184,21 +203,37 @@ class PyBreezeMainWindow(EditorMain):
         """Have the editors ask PyBreeze's language server about JSON files.
 
         The server reads the keywords of the frameworks installed for the
-        interpreter the scripts run with, as it is when the IDE starts. A
-        packaged build has no interpreter to run the server with, and offers
-        none. The editors JEditor restored looked for a server while it was
-        building them, before this one was on offer: those holding a JSON
-        file look again.
+        interpreter the scripts run with. It is offered as the IDE starts and
+        again whenever another interpreter is chosen (the ``python_compiler``
+        setter): the server's command names the interpreter, so the editors
+        holding a JSON file leave the old server for a new one. The editors
+        JEditor restored looked for a server while it was building them,
+        before this one was on offer: they look again the same way. Starting a
+        server is a ``QProcess``; nothing here waits for it.
         """
-        if not can_serve():
-            return
-        offer_to_jeditor(self.python_compiler or default_interpreter(), language_wrapper.language)
+        self._language_server_offered = True
+        offer_to_jeditor(self._script_interpreter(), language_wrapper.language)
         for index in range(self.tab_widget.count()):
             widget = self.tab_widget.widget(index)
             if not isinstance(widget, EditorWidget) or widget.code_edit.current_file is None:
                 continue
             if Path(str(widget.code_edit.current_file)).suffix.lower() == ACTION_SCRIPT_SUFFIX:
                 widget.code_edit.start_language_server()
+
+    def _script_interpreter(self) -> str | None:
+        """The Python that runs the scripts: the one chosen, else the default; ``None`` when there is none.
+
+        Only a packaged build can be without one (no ``venv`` in the folder and
+        no Python on ``PATH``). The server is offered all the same: it still
+        says whether a JSON file is JSON, and why it has no keywords.
+        """
+        if self.python_compiler:
+            return self.python_compiler
+        try:
+            return default_interpreter()
+        except JEditorExecException as error:
+            pybreeze_logger.info("main_ui.py no interpreter for the language server's keywords: %r", error)
+            return None
 
     def _add_extend_tabs(self) -> None:
         """Add every registered ``EDITOR_EXTEND_TAB`` widget as a tab.
