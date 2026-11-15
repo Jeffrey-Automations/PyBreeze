@@ -7,11 +7,13 @@ import logging
 import os
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
 from je_editor import language_wrapper
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QDockWidget, QMainWindow, QMenu, QMenuBar, QTabWidget
 from test_utils.started_window import run_started_window
 
@@ -30,7 +32,7 @@ from pybreeze.pybreeze_ui.navigation.navigation_model import (
     build_navigation,
     entries_from_menu,
 )
-from pybreeze.utils.ui_state import read_ui_state
+from pybreeze.utils.ui_state import read_ui_state, remember
 
 
 # Whether the JEditor in use gives its window a shell (activity bar, side bar):
@@ -341,6 +343,90 @@ def test_the_dock_menu_entry_remembers_what_it_was_set_to(home):
     _remember_navigation_visible(True)
 
     assert read_ui_state() == {VISIBLE_STATE: True}
+
+
+class _Host(QMainWindow):
+    """A main window with only what adding the navigation asks of one.
+
+    The real window is started in a child interpreter further down; these run
+    the two ways of adding the panel in this process, whichever JEditor is
+    installed.
+    """
+
+    def __init__(self, workbench=None) -> None:
+        super().__init__()
+        self.dock_menu = QMenu(self)
+        if workbench is not None:
+            self.workbench = workbench
+
+    def add_navigation(self) -> None:
+        from pybreeze.pybreeze_ui.editor_main.main_ui import PyBreezeMainWindow
+
+        self._add_navigation_dock = lambda navigation: PyBreezeMainWindow._add_navigation_dock(self, navigation)
+        with patch("pybreeze.pybreeze_ui.editor_main.main_ui.build_navigation", return_value=_navigation([])):
+            PyBreezeMainWindow._add_navigation(self)
+
+
+class TestWhereThePanelIsAdded:
+    @pytest.fixture
+    def shell(self):
+        """JEditor's shell, as far as PyBreeze uses it."""
+        workbench = MagicMock()
+        workbench.has_saved_layout.return_value = False
+        return workbench
+
+    def test_with_a_shell_it_is_a_view_of_the_side_bar(self, app, home, shell):
+        host = _Host(shell)
+
+        host.add_navigation()
+
+        shell.add_view.assert_called_once_with(
+            NAVIGATION_VIEW, "side", widget=host.navigation_panel,
+            title_key="navigation_dock_title", icon="navigation")
+        assert isinstance(host.navigation_panel, NavigationPanel)
+        assert host.navigation_dock is None
+        assert host.findChildren(NavigationDock) == []
+
+    def test_on_a_first_start_it_is_the_view_shown(self, app, home, shell):
+        _Host(shell).add_navigation()
+
+        shell.show_view.assert_called_once_with(NAVIGATION_VIEW)
+        shell.restore_layout.assert_not_called()
+
+    def test_a_saved_layout_is_restored_now_that_the_view_exists(self, app, home, shell):
+        # JEditor restored it while building the window, before this view was there
+        shell.has_saved_layout.return_value = True
+
+        _Host(shell).add_navigation()
+
+        shell.restore_layout.assert_called_once_with()
+        shell.show_view.assert_not_called()
+
+    def test_without_a_shell_it_is_a_dock_at_the_left(self, app, home):
+        host = _Host()
+
+        host.add_navigation()
+
+        assert host.dockWidgetArea(host.navigation_dock) == Qt.DockWidgetArea.LeftDockWidgetArea
+        assert host.navigation_panel is host.navigation_dock.panel
+        assert host.navigation_dock.toggleViewAction() in host.dock_menu.actions()
+        assert not host.navigation_dock.isHidden()
+
+    def test_a_dock_closed_last_time_starts_closed(self, app, home):
+        remember(VISIBLE_STATE, False)
+        host = _Host()
+
+        host.add_navigation()
+
+        assert host.navigation_dock.isHidden()
+
+    def test_the_docks_filter_is_the_panels(self, app, home):
+        host = _Host()
+        host.add_navigation()
+
+        host.navigation_dock.apply_filter("regex")
+
+        assert _shown(host.navigation_dock) == [[_word("navigation_category_tools"), [["Regex Tester", []]]]]
 
 
 # The child's home is its working folder, so the test decides what was remembered
