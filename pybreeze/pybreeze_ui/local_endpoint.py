@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from urllib.parse import urlparse
 
-from PySide6.QtCore import QObject, QThread, Slot
+from PySide6.QtCore import QObject, Qt, QThread, Slot
 from PySide6.QtWidgets import QMessageBox, QWidget
 from je_editor import language_wrapper
 
@@ -93,6 +93,7 @@ class LocalEndpointGate(QObject):
         """Show the host and the addresses, and ask; no is the default."""
         word = language_wrapper.language_word_dict
         box = QMessageBox(self._panel)
+        box.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
         box.setIcon(QMessageBox.Icon.Warning)
         box.setWindowTitle(word.get("local_endpoint_title"))
         # As text: the host is what the user typed, and must not be read as markup
