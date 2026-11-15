@@ -1,88 +1,90 @@
-# progress.md: PyBreeze
+# progress.md：PyBreeze 待辦
 
-Outstanding work only. When an item is done, delete it in the same commit and add a `#done` entry to `docs/updates/` (format and query commands: `docs/updates/README.md`). No finished items, no history, no rules (rules live in `CLAUDE.md`).
-Item numbers (`#n`) are never reused. Tags: [DECIDE] needs the owner's decision, [BLOCKED] waits on something else, [UNVERIFIED] observed but not confirmed.
-Cross-repo and workspace items live in `D:\Codes\progress.md` (relevant here: X-1, X-17).
+只放還沒做的事，一律以繁體中文記錄。做完就在同一個 commit 裡刪掉這條，並在 `docs/updates/` 新增一筆 `#done` 紀錄（格式與查詢方式見 `docs/updates/README.md`）。不放已完成的項目、不寫流水帳、不寫規則（規則在 `CLAUDE.md`）。
+編號 `#n` 不重用。標記：〔決定〕需擁有者拍板、〔已決定〕擁有者已答覆、等著動手、〔阻塞〕在等別的事、〔未確認〕觀察到但還沒證實。
+需要人在真正的機器、螢幕或瀏覽器上操作才能驗收的項目，一律放在最上面的「實體驗收」。
+跨專案與工作區層級的待辦在 `D:\Codes\progress.md`（與本專案相關：X-1、X-17）。
 
-## Open
+## 實體驗收
 
-- **#27** [DECIDE] paramiko is not pinned (`requirements.txt`, `pyproject.toml`, `dev.toml`), so an install may get 4.x, which still has CVE-2026-44405 (SHA-1 RSA signatures). The code refuses SHA-1 on every connect whatever the version (`SHA1_ALGORITHMS`, U-20260923-40), and the SSH tests pass on 5.0.0. Should the dependency say `paramiko>=5.0.0`, or be pinned exactly like PySide6?
-  <br>
-  - [Answer] 固定版本.
-- **#49** [DECIDE] jupyterlab is unpinned (`requirements.txt`, `pyproject.toml`, `dev.toml`). The JupyterLab tab now upgrades the releases below in the interpreter it runs in (`jupyter_lab_gui/jupyter_lab_thread.py`, `_VULNERABLE_RELEASES`), but an install of PyBreeze itself can still resolve to them; this repo's `.venv` has jupyter_server 2.17.0. Fixed upstream: path traversal (CVE-2026-5422, fixed in 2.18.2), stored XSS through the nbconvert handlers (CVE-2026-44727 / GHSA-fcw5-x6j4-ccmp, 2.20.0; the embedded server has no token, so a script in a rendered notebook can drive it) and tokens logged from the Referer on 5xx (CVE-2026-86049, 2.21.0). jupyterlab itself is 4.5.6 there, below the fixes for a sanitizer-allowed command-linker button that runs commands on one click (CVE-2026-42557, 4.5.7), an SVG opened in the image viewer keeping a same-origin script context (CVE-2026-73415) and an imported `overrides.json` (CVE-2026-73417), both fixed in 4.5.10 / 4.6.2; with no token, a script running in the page can drive the server. Should the dependencies require `jupyter_server>=2.21.0` and `jupyterlab>=4.5.10`?
-  <br>
-  - [Answer] 固定版本.
-- **#53** [DECIDE] `requests` and `urllib3` are imported directly (`utils/network/public_http.py`, `http_client.py`, `url_validation.py`, the three AI panels) but declared nowhere (`requirements.txt`, `pyproject.toml`, `dev.toml`); they arrive through the automation packages, so their versions are whatever those allow. This repo's `.venv` has urllib3 2.6.3, below the 2.7.0 that fixes CVE-2026-44431 (Authorization and Cookie forwarded on a cross-origin redirect; these requests do not follow redirects) and CVE-2026-44432 (a Brotli response decompressed whole on a second `read(amt)`; not reproduced here with brotli 1.2.0 installed, `read_capped_text` stopped at its 16 MB cap, and `test_http_client.py`'s `TestACompressedBomb` keeps it so). `public_http` also relies on urllib3's `_dns_host` and `http.client`'s `_create_connection` (`test_public_http.py` guards both; passes on urllib3 2.6.3 and 2.8.0). `cryptography` is imported directly too (`connect_gui/ssh/ssh_key_loader.py`, reading PKCS#8 and passphrase-protected keys) and arrives only through paramiko; the `.venv` has 46.0.6, below 46.0.7, which fixes CVE-2026-39892 (a non-contiguous buffer passed to an API that takes one, such as `Hash.update(buf[::-1])`; the key loader passes whole `bytes`). So is `qt_material`, which `start_editor` needs to style the window (`editor_main/main_ui.py`) and which arrives only through je-editor. Should the dependencies declare `requests`, `urllib3>=2.7.0`, `cryptography>=46.0.7` and `qt-material`, and pin them like PySide6?
-  <br>
-  - [Answer] 明確宣告並固定版本.
-- **#54** [DECIDE] The release path trusts more than it needs to. `stable.yml`'s `publish` job uploads with a long-lived `secrets.PYPI_API_TOKEN` (`.github/workflows/stable.yml:148-152`); PyPI's trusted publishing (OIDC, `pypa/gh-action-pypi-publish` with `id-token: write`) would need no stored token, but it has to be set up on PyPI by the owner first (zizmor's `use-trusted-publishing`). CI also installs prthinker from the head of its `main` branch (`dev.yml:48`, `stable.yml:47`). Should the publish job move to trusted publishing, and prthinker be installed from a fixed commit?
-  <br>
-  - [Answer] 不用.
-- **#89** [DECIDE] The prthinker settings offer the Gemini, Cohere and Mistral backends but have no field for their keys: prthinker reads them from the environment the IDE was started in, and the dialog now names that variable when one of them is chosen (`KEY_FROM_ENVIRONMENT`, `dialog/prthinker_setting_dialog.py`). Should they also get password fields like the OpenAI and Anthropic keys, stored with them?
-  <br>
-  - [Answer] 提供.
-- **#92** [DECIDE] The embedded JupyterLab has no token (`--ServerApp.token=`): the loopback bind keeps browsers and other machines out, but not other accounts on a shared machine (RDS, a lab Linux box), which get a kernel as the IDE user. Generate a token per launch and load the view with it? The Security › JupyterLab rule would change with it.
-  <br>
-  - [Answer] 每次啟動時產生一個 token，並在載入 view 時使用這個 token.
-- **#103** [BLOCKED] PyBreeze's automation keywords are never highlighted: `syntax_extend_package` registers them for `.json`, `.yml` and `.yaml` (`pybreeze_ui/syntax/syntax_extend.py`), but JEditor has built-in rules for those suffixes, so `CodeEditor.reset_highlighter` gets a `GenericHighlighter` from `highlighter_for`, and only `PythonHighlighter` reads the plugin registry (`je_editor/pyside_ui/code/syntax/generic_syntax.py:124`, `code_edit_plaintext.py:423-425` in `D:\Codes\JEDITOR` at d372c35). Needs JEditor's generic highlighter to add a registered language's words for the suffix, taking the colour as a theme colour key as its own rules do (PyBreeze registers `warning_output_color` and `diff_modified_marker_color`); the `architecture.md` §6 contract changes with it.
-  <br>
-  - [Answer] 修改.
-- **#106** [DECIDE] `test_pioneer` is unpinned (`requirements.txt`, `pyproject.toml`, `dev.toml`), and before 0.1.34 it read a YAML file in the locale's encoding: on a Traditional Chinese Windows (cp950) TestPioneer "Run YAML" of a file with a non-ASCII character, which the editor saves as UTF-8, exits 1 with `UnicodeDecodeError` (`extend/process_executor/test_pioneer/test_pioneer_process_manager.py`). This repo's `.venv` has 0.1.30; 0.1.34 reads it as UTF-8. `Install ▸ Automation ▸ Install TestPioneer` upgrades it by hand meanwhile. Should the dependencies require `test_pioneer>=0.1.34`?
-  <br>
-  - [Answer] 在 dependencies 中要求 test_pioneer>=0.1.34.
-- **#108** [BLOCKED] The Traditional Chinese IDE still shows Mainland terms in JEditor's own entries, which PyBreeze does not define: the Run menu (`run_menu_label` 運行, `run_menu_run_program_label` 運行程式, `run_menu_run_on_shell_label` 在終端運行, ...), the font menus (`file_menu_font_label` / `text_menu_label_font` 字體, `font_size` 字體大小) and `editor_code_result` 程式運行結果 (`je_editor/utils/multi_language/traditional_chinese.py:54`, `:96-97` and on, in `D:\Codes\JEDITOR` at e1a8b12). PyBreeze's own entries use 執行, 字型, 外掛 and 終端機 (`test_traditional_chinese_uses_taiwan_terms`), so its menus now sit beside JEditor's 運行. The Dock menu is 區域 (`dock_menu_label`, with 新編輯器區域, 新瀏覽器區域, `:64-68` at bb6bc94) while PyBreeze's entries in it say 停駐窗格, and its Editor, Git and Tools submenus (`:78-80`) are not translated. Needs the words changed in JEditor; overriding them here would copy JEditor's English entries into both of PyBreeze's dictionaries.
-  <br>
-  - [Answer] 修改 JEditor 中的這些詞彙.
-- **#109** [DECIDE] `je-editor>=1.0.27` (`requirements.txt`, `pyproject.toml`, `dev.toml`) lets an environment keep a gitpython below 3.1.59, which has CVE-2026-78676 (a config write turns a quoted value into a live `core.hooksPath`: code runs on the next hook) and CVE-2026-78679; the IDE's git features use it (JEditor's `je_editor/git_client/`). je-editor 1.0.28 differs from 1.0.27 only in requiring `gitpython>=3.1.59`, and 3.1.59 still has CVE-2026-87818 (the diff API's `--no-index` reads any path), fixed in 3.1.60. Should the dependencies say `je-editor>=1.0.28`, declare `gitpython>=3.1.60`, or both? JEditor's own floor is its to raise (`D:\Codes\JEDITOR\pyproject.toml:18`).
-  <br>
-  - [Answer] 兩者都做.
-- **#110** [BLOCKED] A file opened from the project tree shows as unsaved (" *" on its tab, `_is_modified` true) before anything is typed: JEditor's `EditorWidget.open_an_file` fills the editor with `setPlainText`, which fires `_on_text_changed`, and never clears the mark afterwards (`je_editor/pyside_ui/main_ui/editor/editor_widget.py:295` and `:347-358` in `D:\Codes\JEDITOR` at 1bf81e3; plain `EditorMain` does the same). Needs `open_an_file` to clear the mark (`mark_saved()`) once the file is loaded.
-  <br>
-  - [Answer] 解決掉.
-- **#111** [DECIDE] AI Code Review, CoT Code Review and Skill Send refuse an endpoint on this machine or on a private network (`validate_url` in `ai_code_review_gui.py:77`, `code_review_thread.py:33`, `skills_send_gui.py:55`; `url_validation._is_blocked_ip`), so a local model server (Ollama, LM Studio, a prthinker server on localhost) cannot be used from them, although CoT Code Review and Skill Send suggested `http://127.0.0.1:5000/api` until U-20260925-11. The Security › Network rule rejects loopback and private addresses for every user-supplied URL. Should these panels let the user allow a loopback (or private) endpoint, for example after a confirmation naming the address, or stay public-only?
-  <br>
-  - [Answer] 讓這些 panels 允許使用者允許 loopback（或 private）endpoint，例如在確認畫面中明確顯示該 address 後允許.
-- **#112** [DECIDE] Two of the executable build configs still build the IDE under its old name: `exe/auto_py_to_exe_setting_linux.json` (name AutomationIDE, script `exe/start_automation_editor.py` and icon `exe/je_driver_icon.ico`, neither of which exists any more, all under `C:/CodeWorkspace/Python/AutomationIDE`) and the InstallForge project `exe/automation_ide_setup_config.ifp` (program AutomationIDE 1.0.9, the AutomationIDE repository as its website and licence link, the same icon, `...\AutomationIDE\output\AutomationIDE.exe`). The Windows `exe/auto_py_to_exe_setting.json` builds PyBreeze from `exe/start_pybreeze.py` with the icon `pybreeze/pybreeze_ui/editor_main/pybreeze_icon.ico`, also bundled as data for the window. Should the two be brought over to PyBreeze the same way (their paths are a build machine's), or deleted if they are no longer used?
-  <br>
-  - [Answer] 都改用 Nukita 這兩個 py_auto_to_exe 的 config 可以刪除.
-- **#113** [BLOCKED] A translation plugin's language is listed in the Language menu under its key, not the name it registers: `register_natural_language(key, display_name, word_dict)` (`je_editor/plugins/__init__.py`) writes the dictionary into `language_wrapper.choose_language_dict` but not `display_names`, so `available_languages()` lists it and `display_name()` gives the key (`je_editor/pyside_ui/main_ui/menu/language_menu/build_language_server.py:47-49`), and the loop over `get_all_natural_languages()` below skips it as already listed. Seen with the Sphinx Plugins page's French example ("French" shown, not "Français") on je_editor 1.0.27. Needs JEditor's `register_natural_language` to call `language_wrapper.register_language(key, word_dict, display_name)`.
-  <br>
-  - [Answer] 解決掉.
-- **#114** [BLOCKED] File > Save File, Run Program and Run Debugger open a Save As dialog every time, starting in the working folder with no name filled in, even for a tab that already has a file: each calls `choose_file_get_save_file_path()` (`je_editor/pyside_ui/main_ui/menu/file_menu/build_file_menu.py:96`, `.../run_menu/under_run_menu/build_program_menu.py:95`, `build_debug_menu.py:106`), which always asks, on je_editor 1.0.27. PyBreeze's own Run with... saves in place (`save_current_file_for_run`). Needs JEditor to write a tab with a file where it is, and ask only for one without; the Sphinx File/Run/Text page says what it does now.
-  <br>
-  - [Answer] 解決掉.
-- **#115** [BLOCKED] Run Debugger works once per editor tab: when the `pdb` run ends, `ExecManager.full_exit_program()` clears the tab's `exec_program`, not `exec_python_debugger` (`je_editor/pyside_ui/code/code_process/code_exec.py:228`), and nothing else clears it, not Stop current program (`build_run_menu.py:117`) or Stop All, so the next Run Debugger in that tab says a program is still running (`build_debug_menu.py:102`). Reproduced on je_editor 1.0.27 in the real window: after `pdb` quit (exit 0) the slot was still set and a second Run Debugger was refused. Needs the debugger's manager to clear the slot it was stored in.
-  <br>
-  - [Answer] 解決掉.
-- **#116** [BLOCKED] Opening a file into an editor tab replaces the text it holds without asking: a click in the project tree (`project_treeview.clicked` -> `treeview_click`) and File > Open File both call `EditorWidget.open_an_file()` (`je_editor/pyside_ui/main_ui/editor/editor_widget.py:262`), which checks only whether the file is open elsewhere, then `setPlainText`s it. A tab with a file loses the last seconds of typing (auto-save runs every 5 s); a new tab loses everything. Reproduced on je_editor 1.0.27 in the real window: an untitled tab's text was replaced, nothing asked. Needs JEditor to ask when the tab has unsaved edits (its `_is_modified`), or open into a new tab; the Sphinx UI Overview says what happens now.
-  <br>
-  - [Answer] 開啟新檔案.
-- **#117** [BLOCKED] JEditor's Variable Inspector (Tab > Tools Tab, Dock > Editor, and each editor tab's bottom panel) is always empty: `VariableModel` shows the `namespace` it is given, and nothing gives it one (`je_editor/pyside_ui/code/variable_inspector/inspector_gui.py:17`, built with none at `editor_widget.py:151` and `build_tab_tools_menu.py:103`; no code sets `.namespace`), on je_editor 1.0.27. The README no longer lists it among the editor's features; the Sphinx pages say it is empty. Needs JEditor to feed it from somewhere (the IPython console's namespace, or a paused debugger's), or to drop it.
-  <br>
-  - [Answer] 確保可以提供使用者 Variable Inspector 的正確功能 (可以觀看目前變數值等).
-- **#118** [BLOCKED] A settings file whose `ui_style` is not a string stops the IDE from starting: `EditorMain.__init__` calls `startup_setting()` unguarded (`je_editor/pyside_ui/main_ui/main_editor.py:245`), which hands the value to qt_material's `apply_stylesheet`, and a number raises `TypeError` inside the window's constructor, before PyBreeze can do anything (reproduced on je_editor 1.0.27 with `{"ui_style": 42}` in `.jeditor/user_setting.json`: the window was never built). A theme name that does not exist only logs a warning. Needs JEditor to check the saved style's type, or to guard that call as `_restore_open_files_session` is guarded.
-  <br>
-  - [Answer] 解決掉.
-- **#119** [BLOCKED] Most of the IDE's start is JEditor importing two tools nobody has opened yet: `build_dock_menu.py:17,22` and `build_tab_tools_menu.py:9-10` (`je_editor/pyside_ui/main_ui/menu/`) import `ChatUI`, which brings `langchain_openai` and `openai` (2.0–2.5 s), and `IpythonWidget`, which brings IPython (about 1 s), at the top. With `-X importtime` on je_editor 1.0.27, `build_dock_menu` is 3.1–3.7 s of the 4.1–4.9 s it takes to import PyBreeze's main-window module. PyBreeze imports its own heavy GUIs (the automation packages', SSH) when they are first opened. Needs JEditor to import these two in the actions that open them.
-  <br>
-  - [Answer] Import these two in the actions that open them.
-- **#120** [BLOCKED] A locust script run with JEditor's Run Program, Run Debugger or shell runs its HttpUser users one at a time: those start their process with the IDE's own environment (`subprocess.Popen` with no `env`, `je_editor/pyside_ui/code/code_process/code_exec.py:99,194`, `.../shell_process/shell_exec.py:95`), which carries `LOCUST_SKIP_MONKEY_PATCH` (PyBreeze sets it so that locust cannot patch the IDE with gevent), and unpatched a 3 s test of 10 users took over three minutes. PyBreeze's own runs (the automation menus, Run with..., installs, the JupyterLab server) leave it out through `child_environment()`, which drops every variable whose value is `subprocess_util.IDE_ONLY`. Needs JEditor to let its host give the environment for the processes it starts, or to drop variables with that value.
-  <br>
-  - [Answer] 讓 host 能夠提供它啟動 process 時所使用的 environment.
-- **#121** [BLOCKED] PyBreeze cannot be installed on Python 3.15 (due October 2026): `requirements.txt`, `pyproject.toml` and `dev.toml` pin `PySide6==6.11.2`, whose wheels say `Requires-Python <3.15` (with 3.15.0rc2, pip finds no PySide6 to install). PySide's `dev` branch raised the bound to `<3.16` on 2026-08-25 for its next release, and three days later moved QtWebEngine out of `PySide6` into a wheel of its own, `PySide6_WebEngine` (`PySide6` is then Essentials and Addons only; `create_wheels.py`). Moving the pin to that release therefore also needs `PySide6_WebEngine` beside it, in all three files: JEditor imports `QtWebEngineWidgets` as the IDE starts (its browser) and the JupyterLab tab is a `QWebEngineView`. je-editor and frontengine pin `PySide6==6.11.2` as well and move with it (workspace). Then add 3.15 to the CI matrix, the classifiers and the README's version range. Blocked until that PySide6 release, and `PySide6_WebEngine`, are on PyPI.
-  <br>
-  - [Answer] 保留到正式推出後且其他套件支援再說.
-- **#124** [BLOCKED] The IDE's own auto-save can ask "File Changed: 'a.py' has been modified externally. Do you want to reload it?": JEditor's auto-save writes every 5 s whether or not the text changed (`je_editor/pyside_ui/code/auto_save/auto_save_thread.py:108-121`) and first marks the tab to ignore one change (`mark_ignore_next_file_change`, `editor_widget.py:473`; `auto_save_manager.py:50`), but on Windows one write (`open("wb")` empties the file, then fills it) can raise `QFileSystemWatcher.fileChanged` twice, and the second reaches `QMessageBox.question` (`editor_widget.py:480-500`, in `D:\Codes\JEDITOR` at 3258ae5). Measured: JEditor's writer, rewriting an unchanged file from a worker thread, signalled twice in 51 of 200 writes; in the running IDE a second watcher on the file saw 12 signals for 11 auto-saves. CI failed on it three times in `test_file_tree_rename.py`'s two save tests (8e8efdd and e981c04 on Python 3.14, 688afcb on 3.10), where the harness found the question open; those two now block the tab's watcher signals, since they test the rename, and any other child-IDE test that waits across an auto-save can still hit it. Needs JEditor to tell its own write from another program's by the content, not by counting signals: keep what it last wrote (or a hash) and let `_on_file_changed_externally` pass over a change after which the file still holds it.
-  <br>
-  - [Answer] 照你提供的方式解決.
-- **#125** Run the complete unit suite on Linux/macOS and make those platforms release gates; the existing platform jobs currently exercise smoke tests only.
-- **#126** [BLOCKED] The main window cannot be made narrower than about 1770 pixels (measured with a 12-pixel font on the offscreen platform): the editor tab's least width is 1768, all of it from JEditor's Git panel in the tab's lower pane (`GitGui`, least width 1670; the console beside it asks for 914). PyBreeze's own tool tabs are held to 60 ems (`test_tools_fit_small_screens.py`, U-20261008-07), so the IDE's shell is now the one part that does not fit a 1366-pixel laptop. Needs JEditor's `GitGui` to let its rows wrap or shrink, as PyBreeze's `design/flow_layout.py` does; nothing here can change it without replacing the editor core's widget.
-- **#127** The README's screenshots predate the navigation panel: `images/main_window.png` shows the window without the dock at its left, and `images/tool_response_inspector.png`, `images/tool_har_import.png` and `images/diagram_editor.png` show rows that now wrap and gaps that are now one em. They are true to what the tools do, not to how the window looks. Retake them (the three READMEs share the files) once the phases that add tabs have landed, so that it is done once.
-- **#128** A packaged build (`exe/`) offers no language service for action scripts: `sys.executable` is the app, so there is no interpreter to start `extend/language_server/__main__.py` with, and `launch.can_serve()` is false. The keyword probe itself would work there (it runs the interpreter `default_interpreter()` finds on PATH), so the Automation Keywords tab does. What is missing is a way to run the server: a second entry in the packaged executable (as the regex tester's worker is a `spawn` child there), or the server run by the PATH interpreter with PyBreeze's package folder on its path.
-- **#129** The language server reads the frameworks' keywords for the interpreter known when the IDE starts (`PyBreezeMainWindow._offer_language_server()`). An interpreter chosen later from the Python environment menu is used by runs and by the Automation Keywords tab at once, and by the editor's completion and diagnostics only after a restart: JEditor's `DEFAULT_SERVERS` holds one command per suffix and nothing tells PyBreeze the interpreter changed. Needs a hook where the choice is made (`build_venv_menu.py` is JEditor's), then `offer_to_jeditor()` again and the open `.json` tabs restarted.
-- **#130** [DECIDE] The interpreter saved in JEditor's settings (`python_compiler`) is forgotten at every start: `EditorMain.startup_setting()` restores it and `PyBreezeMainWindow.__init__` then sets `self.python_compiler = None` (`pybreeze/pybreeze_ui/editor_main/main_ui.py`). Checked with the started window: a settings file naming an interpreter gives `window.python_compiler is None`. `build_task_process()`'s own docstring says a run uses "the Python environment menu, or the saved setting". Removing the assignment would make runs, the JupyterLab tab, prthinker and the language server use the saved interpreter from the start; whether that is wanted (a saved path may no longer exist) is the owner's call.
-- **#131** [DECIDE] The MCP client speaks the standard-input-and-output transport only. The protocol's HTTP transport (streamable HTTP) is mostly used with servers on the same machine, and the rule for outbound requests (CLAUDE.md, Network) refuses loopback and private addresses: `public_session()` would not connect to `http://127.0.0.1:...`. Offering it means deciding whether a URL the user typed into a server's profile may be a loopback one (as the JupyterLab tab's own server is), and with what the request is then sent.
-- **#132** The MCP client tab does not follow a server's `notifications/tools/list_changed` (nor the resources' and prompts'): they arrive on the thread that reads the server, and nothing brings them to the tab. A server whose tools change is reconnected to see them. `McpClient.on_notification` is there to hang it on; it needs a signal to the UI thread and the pages filled again without losing what is typed. The client also offers a server nothing of its own (sampling, roots, elicitation), by decision (`docs/adr/0011`).
-- **#133** cURL Import reads the form *Copy as cURL (cmd)* gives on Windows wrongly, and without saying so: `curl ^"http://127.0.0.1:8765/users.json^" ^` followed by `-H ^"Accept: application/json^"` gives the URL `^http://127.0.0.1:8765/users.json^` and a header named `^Accept` whose value ends in `^`. `curl_parser` joins lines continued with `^` (`_LINE_CONTINUATION_RE`) but does not undo cmd's `^` before a quote and before the characters cmd escapes. Tutorial 6 asks for the bash form meanwhile. To fix it, the escaping has to be read from what Chrome, Edge and Firefox really copy (none could be run where this was found), with those samples as tests.
-- **#134** [UNVERIFIED] The browser example of tutorial 3 (`docs/source/examples/first_browser_test.json`) has never been run: no browser could be driven where the tutorials were written. `test_tutorial_examples.py` checks its keywords and parameters against the installed WebRunner, and the page shows only the `execute:` lines and says it was not run. Run it once with Chrome, then put the real return values and the report's content in both languages' page and take the note out.
-- **#150** [BLOCKED] The navigation panel still has its dock (`NavigationDock`, `_add_navigation_dock()`, the `navigation_visible` state in `~/.pybreeze/ui_state.json`) for a JEditor whose window has no shell, because `je-editor>=1.0.27` allows one. Once a JEditor release with the shell is out, raise the floor to it and drop the dock path and its tests (`TestTheNavigationAsADock`, the `in_a_dock` marker in `test_navigation.py`, the `dark_amber` branch of `test_start_theme.py`). The main window and menu screenshots were retaken in JEditor Dark (U-20261115-02); the tool tab screenshots (`images/tool_*.png`, the two montages, the diagram editor, the SSH client, the AI and prompt panels, the prthinker dialog, the run window) still show `dark_amber` and want retaking with their sample data.
+- **#152** 新版面還沒有在真正的螢幕上看過。導覽面板改成側邊欄的面板（U-20261115-01）之後，所有畫面都是以 offscreen 渲染擷取的。要在實機上確認：
+  第一次啟動時側邊欄顯示導覽面板、活動列的指南針圖示可以切換、**檢視 ▸ 導覽** 有作用；切到檔案總管再關閉重開，會回到離開時的那個面板；
+  JEditor Dark 與 JEditor Light 兩個主題下，PyBreeze 自己的工具分頁（cURL、HAR、JWT、Diff、SSH、AI、架構圖編輯器）文字與底色都看得清楚；
+  高解析度縮放（125%、150%）下活動列圖示不模糊。
+- **#150** 工具分頁的截圖仍是 `dark_amber`：`images/tool_*.png`、兩張 montage、架構圖編輯器、SSH 用戶端、AI 與提示詞面板、prthinker 對話框、執行視窗。
+  主視窗與三張選單已經以 JEditor Dark 重拍（U-20261115-02）。這些要帶著各自的範例資料重拍；`tool_response_inspector.png`、`tool_har_import.png`、
+  `diagram_editor.png` 另外還停在換行與間距調整之前的樣子。
+- **#134** 〔未確認〕教學 3 的瀏覽器範例（`docs/source/examples/first_browser_test.json`）從來沒有真的跑過：撰寫教學的環境沒有瀏覽器可以驅動。
+  `test_tutorial_examples.py` 只核對關鍵字與參數，頁面上也只列出 `execute:` 那幾行並註明沒有執行過。要用 Chrome 實際跑一次，把真正的回傳值與報告內容補進中英文兩頁，再把那段註記拿掉。
+- **#133** cURL Import 讀錯 Windows 上「Copy as cURL (cmd)」的格式，而且不會提示：`curl ^"http://127.0.0.1:8765/users.json^" ^` 加上
+  `-H ^"Accept: application/json^"` 會得到網址 `^http://127.0.0.1:8765/users.json^` 與名稱為 `^Accept`、值以 `^` 結尾的標頭。`curl_parser` 會接起以 `^` 續行的行
+  （`_LINE_CONTINUATION_RE`），但沒有還原 cmd 在引號與跳脫字元前加的 `^`。教學 6 目前請使用者改用 bash 格式。要修就得拿 Chrome、Edge、Firefox 實際複製出來的內容當測試樣本，
+  發現問題的環境三個瀏覽器都跑不了。
+
+## 待辦
+
+### 相依套件與發佈
+
+- **#27** 〔已決定：固定版本〕paramiko 沒有固定版本（`requirements.txt`、`pyproject.toml`、`dev.toml`），安裝時可能拿到仍有 CVE-2026-44405（SHA-1 RSA 簽章）的 4.x。
+  程式不論版本都會在每次連線拒絕 SHA-1（`SHA1_ALGORITHMS`，U-20260923-40），SSH 測試在 5.0.0 上通過。要像 PySide6 那樣固定到確切版本。
+- **#49** 〔已決定：固定版本〕jupyterlab 沒有固定版本。JupyterLab 分頁會在它執行的直譯器裡升級有問題的版本（`jupyter_lab_gui/jupyter_lab_thread.py`、
+  `_VULNERABLE_RELEASES`），但安裝 PyBreeze 本身仍可能解析到那些版本；本 repo 的 `.venv` 是 jupyter_server 2.17.0、jupyterlab 4.5.6。
+  上游已修：路徑穿越（CVE-2026-5422，2.18.2）、nbconvert 的儲存型 XSS（CVE-2026-44727，2.20.0）、5xx 時把 Referer 裡的 token 寫進 log（CVE-2026-86049，2.21.0）；
+  jupyterlab 的 CVE-2026-42557（4.5.7）、CVE-2026-73415 與 CVE-2026-73417（4.5.10 / 4.6.2）。固定到 `jupyter_server` 2.21.0 以上、`jupyterlab` 4.5.10 以上的確切版本。
+- **#53** 〔已決定：明確宣告並固定版本〕`requests`、`urllib3` 被直接匯入（`utils/network/public_http.py`、`http_client.py`、`url_validation.py`、三個 AI 面板）卻沒有宣告，
+  版本隨自動化套件而定；`.venv` 的 urllib3 是 2.6.3，低於修掉 CVE-2026-44431 與 CVE-2026-44432 的 2.7.0。`public_http` 還依賴 urllib3 的 `_dns_host` 與 `http.client` 的
+  `_create_connection`（`test_public_http.py` 守著，2.6.3 與 2.8.0 都通過）。`cryptography` 也是直接匯入（`connect_gui/ssh/ssh_key_loader.py`），只經由 paramiko 帶進來，
+  `.venv` 是 46.0.6，低於修掉 CVE-2026-39892 的 46.0.7。`qt_material` 同樣只經由 je-editor 帶進來。四個都要宣告並固定。
+- **#106** 〔已決定：要求 `test_pioneer>=0.1.34`〕`test_pioneer` 沒有固定版本，0.1.34 之前以系統語系的編碼讀 YAML：繁體中文 Windows（cp950）上，TestPioneer「Run YAML」
+  遇到含非 ASCII 字元的檔案（編輯器存成 UTF-8）會以 `UnicodeDecodeError` 結束（`extend/process_executor/test_pioneer/test_pioneer_process_manager.py`）。`.venv` 是 0.1.30。
+- **#109** 〔已決定：兩者都做〕`je-editor>=1.0.27` 允許環境留著 3.1.59 之前的 gitpython（CVE-2026-78676：寫設定時把引號內的值變成有效的 `core.hooksPath`；CVE-2026-78679）。
+  je-editor 1.0.28 只多了 `gitpython>=3.1.59`，而 3.1.59 還有 CVE-2026-87818（diff API 的 `--no-index` 可讀任意路徑），3.1.60 修掉。要把下限改成 `je-editor>=1.0.28`
+  並宣告 `gitpython>=3.1.60`。這一項與 #151 的「提高 je-editor 下限」一起做。
+- **#112** 〔已決定：改用 Nuitka，兩份 auto-py-to-exe 設定可以刪除〕`exe/auto_py_to_exe_setting_linux.json` 與 InstallForge 專案 `exe/automation_ide_setup_config.ifp`
+  仍以舊名稱 AutomationIDE 建置，指向已不存在的 `exe/start_automation_editor.py` 與 `exe/je_driver_icon.ico`。擁有者答覆寫的是「Nukita」，這裡當成 Nuitka；動手前先確認。
+- **#121** 〔阻塞〕〔已決定：等正式推出且其他套件支援再說〕Python 3.15 上裝不了 PyBreeze：三個檔案都固定 `PySide6==6.11.2`，它的 wheel 標明 `Requires-Python <3.15`。
+  PySide 的 `dev` 分支已把上限提到 `<3.16`，並把 QtWebEngine 拆成獨立的 `PySide6_WebEngine`；屆時要一併加上它（JEditor 的瀏覽器與 JupyterLab 分頁都用到），
+  je-editor 與 frontengine 也要跟著動，再把 3.15 加進 CI、classifiers 與 README。
+- **#125** 在 Linux 與 macOS 上跑完整的單元測試並設為發佈門檻；現在那兩個平台的工作只跑 smoke test。
+
+### 等 JEditor 發佈
+
+- **#151** 〔阻塞〕以下幾項已經在 JEditor 修掉（JEditor 的 U-20261115-01 ～ -05），等含這些修正的 je-editor 發佈之後，在這裡把下限提高、刪掉為舊版留的路徑，並更新文件：
+  - 導覽面板的 dock 路徑（`NavigationDock`、`_add_navigation_dock()`、`~/.pybreeze/ui_state.json` 的 `navigation_visible`）與它的測試
+    （`TestTheNavigationAsADock`、`test_navigation.py` 的 `in_a_dock`、`test_start_theme.py` 的 `dark_amber` 分支）。
+  - `ui_overview.rst` 中英文兩頁開頭那段「搭配較早的 JEditor」的註記，以及 Sphinx「File / Run / Text」頁面裡「儲存、執行、除錯每次都會跳出另存新檔」的說明
+    （JEditor 現在有檔案的分頁會存回原處，另有 **Save As**）。
+  - 繁體中文介面裡 JEditor 自己的用語已改成執行、字型、終端機、停駐窗格，Dock 選單的子選單也翻了；確認與 PyBreeze 自己的用語一致（`test_traditional_chinese_uses_taiwan_terms`）。
+  - 翻譯外掛的語言現在以它註冊的名稱列出（Sphinx Plugins 頁的法文範例會顯示 Français）。
+  - 除錯器跑完之後同一個分頁可以再次除錯；設定檔的 `ui_style` 不是字串時不再讓 IDE 起不來；JEditor 自己的自動儲存不再問「檔案被外部修改」
+    （`test_file_tree_rename.py` 兩個存檔測試為此擋掉分頁的監看訊號，可以拿掉）。
+  - 啟動時不再匯入 AI 聊天面板與 IPython；在這裡重新量一次 `-X importtime`，更新文件裡的啟動時間。
+
+### 仍要在 JEditor 動手
+
+- **#117** 〔阻塞〕〔已決定：要讓 Variable Inspector 真的能用〕JEditor 的變數檢視器永遠是空的：`VariableModel` 顯示交給它的 `namespace`，但沒有任何程式給它
+  （`je_editor/pyside_ui/code/variable_inspector/inspector_gui.py`）。要讓它能看到目前的變數值（IPython 主控台的 namespace，或暫停中的除錯器）。README 已不把它列為功能，Sphinx 頁面寫明是空的；修好後兩處都要改回來。
+- **#120** 〔阻塞〕〔已決定：讓宿主提供子程序的環境變數〕用 JEditor 的 Run Program、Run Debugger 或 shell 跑 locust 腳本時，HttpUser 一次只跑一個：那些程序沿用 IDE 自己的環境
+  （`subprocess.Popen` 沒給 `env`，`code_exec.py`、`shell_exec.py`），裡面帶著 PyBreeze 設的 `LOCUST_SKIP_MONKEY_PATCH`；10 個使用者的 3 秒測試跑了三分鐘以上。
+  PyBreeze 自己的執行都經過 `child_environment()` 拿掉值為 `subprocess_util.IDE_ONLY` 的變數。JEditor 要讓宿主能提供它啟動程序時用的環境。
+- **#129** 語言伺服器讀的是 IDE 啟動時那個直譯器的框架關鍵字（`PyBreezeMainWindow._offer_language_server()`）。之後從 Python 環境選單改選的直譯器，執行與 Automation Keywords 分頁會立刻採用，
+  編輯器的補全與診斷卻要重啟才會跟上：JEditor 的 `DEFAULT_SERVERS` 每個副檔名只有一個指令，也沒有任何東西通知 PyBreeze 直譯器換了。要在選擇的地方加一個掛點
+  （`build_venv_menu.py` 是 JEditor 的），再呼叫一次 `offer_to_jeditor()` 並重啟開著的 `.json` 分頁。
+
+### PyBreeze 自己的功能
+
+- **#89** 〔已決定：提供〕prthinker 設定有 Gemini、Cohere、Mistral 後端，卻沒有填金鑰的欄位：prthinker 從啟動 IDE 的環境讀取，對話框只在選到它們時顯示變數名稱
+  （`KEY_FROM_ENVIRONMENT`，`dialog/prthinker_setting_dialog.py`）。要比照 OpenAI 與 Anthropic 加上密碼欄位，並與它們存在一起。
+- **#92** 〔已決定：每次啟動產生一個 token，載入 view 時使用〕內嵌的 JupyterLab 沒有 token（`--ServerApp.token=`）：只綁 loopback 擋得住瀏覽器與別台機器，擋不住同一台機器上的其他帳號
+  （RDS、實驗室的 Linux），它們能以 IDE 使用者的身分拿到 kernel。CLAUDE.md 的 Security › JupyterLab 規則要跟著改。
+- **#111** 〔已決定：允許，在確認畫面明確顯示該位址後放行〕AI Code Review、CoT Code Review 與 Skill Send 拒絕本機與私有網路的端點（`validate_url`；`url_validation._is_blocked_ip`），
+  所以本機的模型伺服器（Ollama、LM Studio、localhost 上的 prthinker）用不了。要讓使用者在看過位址的確認之後允許 loopback 或私有位址；CLAUDE.md 的 Security › Network 規則要跟著改。
+- **#130** 〔決定〕JEditor 設定裡存的直譯器（`python_compiler`）每次啟動都被忘掉：`EditorMain.startup_setting()` 還原之後，`PyBreezeMainWindow.__init__` 又設成 `None`
+  （`pybreeze/pybreeze_ui/editor_main/main_ui.py`）。拿掉那一行，執行、JupyterLab 分頁、prthinker 與語言伺服器就會從一開始用存下來的直譯器；但存下來的路徑可能已經不存在，要不要這樣做由擁有者決定。
+- **#131** 〔決定〕MCP 用戶端只支援標準輸入輸出的傳輸。協定的 HTTP 傳輸多半用在同一台機器上的伺服器，而對外請求的規則（CLAUDE.md，Network）拒絕 loopback 與私有位址。
+  要提供的話，得先決定使用者填在伺服器設定裡的網址能不能是 loopback（JupyterLab 分頁自己的伺服器就是），以及請求要帶什麼送出。
+- **#132** MCP 用戶端分頁不會跟著伺服器的 `notifications/tools/list_changed`（resources 與 prompts 的也是）更新：通知到達的是讀取伺服器的那條執行緒，沒有東西把它帶到分頁。
+  目前要重新連線才看得到新的工具。`McpClient.on_notification` 已經留好掛點；還缺一個送到 UI 執行緒的訊號，以及在不弄丟已輸入內容的前提下重填各頁。
+  用戶端不提供伺服器 sampling、roots、elicitation 是既定決定（`docs/adr/0011`）。
+- **#128** 打包版（`exe/`）沒有動作腳本的語言服務：`sys.executable` 是應用程式本身，沒有直譯器可以啟動 `extend/language_server/__main__.py`，`launch.can_serve()` 為 false。
+  關鍵字探測在那裡仍然可用。缺的是啟動伺服器的方法：在打包的執行檔加第二個進入點（像 regex tester 的 worker），或用 PATH 上的直譯器並把 PyBreeze 的套件資料夾放進它的路徑。
