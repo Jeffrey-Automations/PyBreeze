@@ -237,7 +237,7 @@ As in the tools, Ctrl+Enter in AI Code Review, CoT Code Review or Skill Send pre
 
 ![AI code review client](images/ai_code_review.png)
 
-*Shown in the pre-send state.* Send a selection to an LLM endpoint (as the form field `code` in the body of a POST, the default, or a PUT; GET and DELETE send the URL alone), then accept or reject the suggestion — the tally is kept in `~/.pybreeze/response_stats.txt`. The URL is SSRF-validated, the connection goes only to the address that was checked, redirects are not followed, and the response body is size-capped before it reaches the panel. An endpoint on this machine or on a private network, such as a local model server, is therefore refused; CoT Code Review and Skill Send check their endpoint URL the same way.
+*Shown in the pre-send state.* Send a selection to an LLM endpoint (as the form field `code` in the body of a POST, the default, or a PUT; GET and DELETE send the URL alone), then accept or reject the suggestion — the tally is kept in `~/.pybreeze/response_stats.txt`. The URL is SSRF-validated, the connection goes only to the address that was checked, redirects are not followed, and the response body is size-capped before it reaches the panel. An endpoint on this machine or on a private network, such as a local model server (Ollama, LM Studio), is asked about first: the question names the host and the addresses it resolves to, No is the default, and on a Yes the request goes to exactly those addresses. The answer is kept for that host until the panel is closed and is never written to disk. Link-local addresses (the cloud metadata service among them) and every other non-public address are still refused. CoT Code Review and Skill Send check their endpoint URL, and ask, the same way.
 
 ### Chain-of-Thought Code Review (prthinker)
 
@@ -283,7 +283,7 @@ Loaded plugins appear under their own **Plugins** menu with an About entry and o
 - **English** (default)
 - **Traditional Chinese** (繁體中文)
 
-Menus, dialogs, the reasons a tool refuses its input and the run window's own notices (`[Error] …`, `[Run] …`) all follow the chosen language. Both dictionaries carry the same 998 keys, and a test enforces that parity so a new string can never land in one language only. English and Traditional Chinese are the languages PyBreeze maintains. The Language menu also lists JEditor's Japanese (日本語) and Simplified Chinese (简体中文), which PyBreeze passes on without translating: picked, JEditor's own menus change and PyBreeze's strings stay in English. Further languages can be added via translation plugins.
+Menus, dialogs, the reasons a tool refuses its input and the run window's own notices (`[Error] …`, `[Run] …`) all follow the chosen language. Both dictionaries carry the same 1000 keys, and a test enforces that parity so a new string can never land in one language only. English and Traditional Chinese are the languages PyBreeze maintains. The Language menu also lists JEditor's Japanese (日本語) and Simplified Chinese (简体中文), which PyBreeze passes on without translating: picked, JEditor's own menus change and PyBreeze's strings stay in English. Further languages can be added via translation plugins.
 
 ---
 

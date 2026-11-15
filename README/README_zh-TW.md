@@ -237,7 +237,7 @@ python -m pybreeze.extend.language_server [--interpreter /path/to/python] [--lan
 
 ![AI 程式碼審查用戶端](../images/ai_code_review.png)
 
-*畫面為送出前的狀態。* 把選取的程式碼送到 LLM 端點（以 POST（預設）或 PUT 送出，程式碼放在本文的表單欄位 `code`；GET 與 DELETE 只送出 URL），再接受或拒絕建議——統計會記錄在 `~/.pybreeze/response_stats.txt`。URL 會經過 SSRF 驗證，連線只會連到檢查過的位址，不跟隨重新導向，回應本文在送進面板前也有大小上限。因此本機或私有網路上的端點（例如在本機跑的模型伺服器）會被拒絕；CoT Code Review 與 Skill Send 也用同樣的方式檢查端點 URL。
+*畫面為送出前的狀態。* 把選取的程式碼送到 LLM 端點（以 POST（預設）或 PUT 送出，程式碼放在本文的表單欄位 `code`；GET 與 DELETE 只送出 URL），再接受或拒絕建議——統計會記錄在 `~/.pybreeze/response_stats.txt`。URL 會經過 SSRF 驗證，連線只會連到檢查過的位址，不跟隨重新導向，回應本文在送進面板前也有大小上限。本機或私有網路上的端點（例如在本機跑的模型伺服器 Ollama、LM Studio）會先詢問：問題會列出主機與它解析到的位址，預設為「否」，選「是」之後請求只會送到這些位址。答案在面板關閉前對該主機有效，不會寫進磁碟。Link-local 位址（包含雲端的 metadata 服務）與其他非公開位址仍然一律拒絕。CoT Code Review 與 Skill Send 也用同樣的方式檢查端點 URL 並詢問。
 
 ### 思維鏈程式碼審查（prthinker）
 
@@ -283,7 +283,7 @@ PyBreeze 沿用 JEditor 的外掛架構，會自動從工作目錄中的 `jedito
 - **English**（英文，預設）
 - **繁體中文**（Traditional Chinese）
 
-選單、對話框、工具拒絕輸入時說明的原因，以及執行視窗自己的訊息（`[錯誤] …`、`[執行] …`）都會跟著所選的語言顯示。兩份字典都有相同的 998 個鍵，並有測試強制兩者一致，因此新字串不可能只出現在其中一種語言。English 與繁體中文是 PyBreeze 自己維護的語言。語言選單另外列出 JEditor 的日文（日本語）與簡體中文（简体中文），PyBreeze 只是原樣提供、沒有翻譯：選了之後 JEditor 自己的選單會改變，PyBreeze 的字串則維持英文。其他語言可透過翻譯外掛加入。
+選單、對話框、工具拒絕輸入時說明的原因，以及執行視窗自己的訊息（`[錯誤] …`、`[執行] …`）都會跟著所選的語言顯示。兩份字典都有相同的 1000 個鍵，並有測試強制兩者一致，因此新字串不可能只出現在其中一種語言。English 與繁體中文是 PyBreeze 自己維護的語言。語言選單另外列出 JEditor 的日文（日本語）與簡體中文（简体中文），PyBreeze 只是原樣提供、沒有翻譯：選了之後 JEditor 自己的選單會改變，PyBreeze 的字串則維持英文。其他語言可透過翻譯外掛加入。
 
 ---
 

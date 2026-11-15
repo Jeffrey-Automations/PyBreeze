@@ -49,7 +49,7 @@ class _Session:
 def session(monkeypatch):
     recorder = _Session()
     for module in (ai_code_review_gui, skills_send_gui):
-        monkeypatch.setattr(module, "validate_url", lambda url: url)
+        monkeypatch.setattr(module, "validate_url", lambda url, *_allowed: url)
         monkeypatch.setattr(module, "public_session", lambda: recorder)
         monkeypatch.setattr(module, "read_capped_text", lambda response: response.text)
     return recorder

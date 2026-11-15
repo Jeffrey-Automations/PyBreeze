@@ -58,6 +58,7 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | ID | Date | Title | Tags | Batch |
 |---|---|---|---|---|
+| U-20261115-07 | 2026-11-15 | AI panels may use a local endpoint after asking | #done #security #ai | [2026-11](2026-11.md) |
 | U-20261115-06 | 2026-11-15 | prthinker key fields for Gemini, Cohere and Mistral | #done #prthinker | [2026-11](2026-11.md) |
 | U-20261115-05 | 2026-11-15 | The embedded JupyterLab asks for a token | #done #security #jupyter | [2026-11](2026-11.md) |
 | U-20261115-04 | 2026-11-15 | Dependencies declared and pinned | #done #deps #security | [2026-11](2026-11.md) |
@@ -726,7 +727,7 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | File | Period | Entries |
 |---|---|---:|
-| [2026-11.md](2026-11.md) | 2026-11 | 8 |
+| [2026-11.md](2026-11.md) | 2026-11 | 9 |
 | [2026-09.md](2026-09.md) | 2026-09 | 218 |
 | [2026-09-b.md](2026-09-b.md) | 2026-09 | 120 |
 | [2026-09-c.md](2026-09-c.md) | 2026-09 | 115 |

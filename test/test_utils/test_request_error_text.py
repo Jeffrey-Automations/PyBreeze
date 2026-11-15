@@ -77,7 +77,7 @@ class TestDescribeRequestError:
 def test_the_skills_panel_does_not_show_the_url(monkeypatch):
     from pybreeze.pybreeze_ui.extend_ai_gui.skills import skills_send_gui
 
-    monkeypatch.setattr(skills_send_gui, "validate_url", lambda url: url)
+    monkeypatch.setattr(skills_send_gui, "validate_url", lambda url, *_allowed: url)
     monkeypatch.setattr(
         skills_send_gui, "public_session", lambda: _Refusing(requests.ConnectionError(_QUOTING_THE_URL)))
     errors: list = []
@@ -93,7 +93,7 @@ def test_the_skills_panel_does_not_show_the_url(monkeypatch):
 def test_the_review_client_does_not_show_the_url(monkeypatch):
     from pybreeze.pybreeze_ui.connect_gui.url import ai_code_review_gui
 
-    monkeypatch.setattr(ai_code_review_gui, "validate_url", lambda url: url)
+    monkeypatch.setattr(ai_code_review_gui, "validate_url", lambda url, *_allowed: url)
     monkeypatch.setattr(
         ai_code_review_gui, "public_session", lambda: _Refusing(requests.ConnectionError(_QUOTING_THE_URL)))
     failed: list = []

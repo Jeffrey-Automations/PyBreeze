@@ -63,8 +63,6 @@
 
 ### PyBreeze 自己的功能
 
-- **#111** 〔已決定：允許，在確認畫面明確顯示該位址後放行〕AI Code Review、CoT Code Review 與 Skill Send 拒絕本機與私有網路的端點（`validate_url`；`url_validation._is_blocked_ip`），
-  所以本機的模型伺服器（Ollama、LM Studio、localhost 上的 prthinker）用不了。要讓使用者在看過位址的確認之後允許 loopback 或私有位址；CLAUDE.md 的 Security › Network 規則要跟著改。
 - **#130** 〔決定〕JEditor 設定裡存的直譯器（`python_compiler`）每次啟動都被忘掉：`EditorMain.startup_setting()` 還原之後，`PyBreezeMainWindow.__init__` 又設成 `None`
   （`pybreeze/pybreeze_ui/editor_main/main_ui.py`）。拿掉那一行，執行、JupyterLab 分頁、prthinker 與語言伺服器就會從一開始用存下來的直譯器；但存下來的路徑可能已經不存在，要不要這樣做由擁有者決定。
 - **#131** 〔決定〕MCP 用戶端只支援標準輸入輸出的傳輸。協定的 HTTP 傳輸多半用在同一台機器上的伺服器，而對外請求的規則（CLAUDE.md，Network）拒絕 loopback 與私有位址。

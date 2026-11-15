@@ -237,7 +237,7 @@ python -m pybreeze.extend.language_server [--interpreter /path/to/python] [--lan
 
 ![AI 代码审查客户端](../images/ai_code_review.png)
 
-*图中为发送前的状态。* 把选中的代码发送到 LLM 端点（以 POST（默认）或 PUT 发送，代码放在请求体的表单字段 `code` 中；GET 与 DELETE 只发送 URL），然后接受或拒绝建议——统计记录保存在 `~/.pybreeze/response_stats.txt`。URL 会经过 SSRF 验证，连接只会连到经过检查的地址，不跟随重定向，响应体在到达面板之前会被限制大小。因此本机或私有网络上的端点（例如在本机运行的模型服务器）会被拒绝；CoT Code Review 与 Skill Send 也以同样的方式检查端点 URL。
+*图中为发送前的状态。* 把选中的代码发送到 LLM 端点（以 POST（默认）或 PUT 发送，代码放在请求体的表单字段 `code` 中；GET 与 DELETE 只发送 URL），然后接受或拒绝建议——统计记录保存在 `~/.pybreeze/response_stats.txt`。URL 会经过 SSRF 验证，连接只会连到经过检查的地址，不跟随重定向，响应体在到达面板之前会被限制大小。本机或私有网络上的端点（例如在本机运行的模型服务器 Ollama、LM Studio）会先询问：问题会列出主机与它解析到的地址，默认为“否”，选择“是”之后请求只会发送到这些地址。答案在面板关闭前对该主机有效，不会写入磁盘。Link-local 地址（包括云端的 metadata 服务）与其他非公开地址仍然一律拒绝。CoT Code Review 与 Skill Send 也以同样的方式检查端点 URL 并询问。
 
 ### 思维链代码审查（prthinker）
 
@@ -283,7 +283,7 @@ PyBreeze 继承了 JEditor 的插件架构，会从工作目录下的 `jeditor_p
 - **English**（默认）
 - **繁體中文**（Traditional Chinese）
 
-菜单、对话框、工具拒绝输入时给出的原因，以及运行窗口自身的提示（`[Error] …`、`[Run] …`）都会跟随所选语言。两份词典包含同样的 998 个键，并有测试确保两者一致，因此新字符串绝不会只出现在一种语言中。English 与繁體中文是 PyBreeze 自己维护的语言。语言菜单还列出 JEditor 的日文（日本語）与简体中文，PyBreeze 只是原样提供、没有翻译：选择后 JEditor 自己的菜单会随之改变，PyBreeze 的字符串则保持英文。其他语言可以通过翻译插件添加。
+菜单、对话框、工具拒绝输入时给出的原因，以及运行窗口自身的提示（`[Error] …`、`[Run] …`）都会跟随所选语言。两份词典包含同样的 1000 个键，并有测试确保两者一致，因此新字符串绝不会只出现在一种语言中。English 与繁體中文是 PyBreeze 自己维护的语言。语言菜单还列出 JEditor 的日文（日本語）与简体中文，PyBreeze 只是原样提供、没有翻译：选择后 JEditor 自己的菜单会随之改变，PyBreeze 的字符串则保持英文。其他语言可以通过翻译插件添加。
 
 ---
 

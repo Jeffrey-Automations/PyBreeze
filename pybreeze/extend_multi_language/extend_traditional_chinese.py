@@ -388,6 +388,12 @@ pybreeze_traditional_chinese_word_dict = {
     "cot_gui_error_no_url": "請先輸入 API URL！",
     "cot_gui_error_no_code": "請先貼上要審查的程式碼。",
     "cot_gui_error_sending": "傳送失敗：",
+    # A local endpoint, asked about before an AI panel sends to it
+    "local_endpoint_title": "本機端點",
+    "local_endpoint_question": (
+        "{host} 位於這台電腦或你的私有網路（{addresses}）。\n\n"
+        "這個面板送出的內容（包含你的程式碼）會送到這個位址。要送過去嗎？\n\n"
+        "在面板關閉之前，這個位址不會再問一次。"),
     # Skills GUI
     "skills_error_status": "錯誤：{status_code}\n{text}",
     "skills_exception": "發生例外：{error}",

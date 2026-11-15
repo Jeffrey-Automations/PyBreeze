@@ -397,6 +397,12 @@ pybreeze_english_word_dict = {
     "cot_gui_error_no_url": "Please enter the API URL first!",
     "cot_gui_error_no_code": "Paste the code to review first.",
     "cot_gui_error_sending": "Error sending:",
+    # A local endpoint, asked about before an AI panel sends to it
+    "local_endpoint_title": "Local endpoint",
+    "local_endpoint_question": (
+        "{host} is on this machine or your private network ({addresses}).\n\n"
+        "What this panel sends, your code included, will go to that address. Send it there?\n\n"
+        "The answer holds for this address until the panel is closed."),
     # Skills GUI
     "skills_error_status": "Error: {status_code}\n{text}",
     "skills_exception": "Exception occurred: {error}",

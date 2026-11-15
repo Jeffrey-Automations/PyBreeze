@@ -36,6 +36,7 @@ their output reaches the UI through Queue + QTimer.
 | `pybreeze/pybreeze_ui/navigation/` | The navigation panel: `navigation_model.py` reads the menus and the tool table into five categories, `navigation_dock.py` shows them as a searchable tree (`NavigationPanel`): a view of the side bar of JEditor's shell with an icon in its activity bar, or, with a JEditor whose window has no shell, in a dock at the left (`NavigationDock`) |
 | `pybreeze/pybreeze_ui/mcp_gui/` | The MCP client tab: `mcp_client_gui.py` (connecting, asking before a call, cancelling, the session's log), `mcp_server_panel.py` (the user's servers and the project's), `mcp_profile_dialog.py`, `mcp_panels.py` (tools, resources, prompts, calls), `mcp_worker.py` (one blocking call on a `KeptThread`) |
 | `pybreeze/pybreeze_ui/report_gui/` | The report viewer tab (`report_viewer_gui.py`): several runs as one tree, a filter bar, the selected result's details, output, attachments and own record, and export |
+| `pybreeze/pybreeze_ui/local_endpoint.py` | `LocalEndpointGate`: asks before an AI panel sends to an address on this machine or the private network, and remembers the answer for the panel's life |
 | `pybreeze/pybreeze_ui/thread_keeper.py` | `let_run_out()`: a worker `QThread` whose widget closed is kept until it ends instead of being waited for |
 | `pybreeze/pybreeze_ui/gui_thread_gc.py` | `GuiThreadGarbageCollector`: automatic garbage collection off, collected on a GUI-thread timer instead (installed by `start_editor()`) |
 | `pybreeze/extend/process_executor/` | Subprocess isolation layer: `TaskProcessManager`, `process_executor_utils.py`, `FileRunnerProcess`, `queue_pump.py`, `run_notice.py`, and `test_pioneer/` and `prthinker/` (the other automation packages run through `build_process()` from their menus) |
@@ -361,6 +362,8 @@ MCP Client → Calls → Open in Report Viewer → ReportViewerGUI.show_report(M
 - Every outbound request to a user URL passes SSRF validation (`utils/network/url_validation.py`)
   with timeouts and size caps, and connects through `utils/network/public_http.py`, which connects
   only to the addresses it checks as it connects, trying each in turn (§ Security › Network).
+  The AI panels may reach a loopback or private address the user was shown and allowed
+  (`pybreeze_ui/local_endpoint.py`); the connection is checked against exactly those addresses.
 - SSH uses the interactive host-key policy, never auto-add (§ Security › SSH).
 - Work that waits on a network — an AI review request, a diagram's image downloads, an SSH
   connect, an SFTP listing or transfer — runs on a

@@ -517,3 +517,76 @@ class TestARedirectIsNotLookedInto:
         finally:
             redirect.close()
             image.close()
+
+
+class TestApprovedLocalAddresses:
+    """An address the user allowed is reached, and only that address."""
+
+    def test_a_local_name_is_not_reached_without_it(self, dns, listener):
+        with _session() as session, pytest.raises(requests.ConnectionError, match="Refused"):
+            session.get(f"http://service.test:{listener.port}/", timeout=3)
+
+        assert listener.received == []
+
+    def test_the_allowed_address_is_reached_under_its_name(self, dns, listener):
+        from pybreeze.utils.network.public_http import approved_local_addresses
+
+        with approved_local_addresses({"127.0.0.1"}), _session() as session:
+            response = session.get(f"http://service.test:{listener.port}/", timeout=3)
+
+        assert response.text == "ok"
+        assert f"Host: service.test:{listener.port}".encode() in listener.received[0]
+
+    def test_the_urllib_opener_reaches_it_too(self, dns, listener):
+        from pybreeze.utils.network.public_http import approved_local_addresses
+
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), PublicHTTPHandler, PublicHTTPSHandler)
+
+        with approved_local_addresses({"127.0.0.1"}):
+            assert _read(opener, f"http://service.test:{listener.port}/") == b"ok"
+
+    def test_another_allowed_address_does_not_cover_this_one(self, dns, listener):
+        # Allowed for 10.0.0.5, and the name answers 127.0.0.1 as the connection is made
+        from pybreeze.utils.network.public_http import approved_local_addresses
+
+        with approved_local_addresses({"10.0.0.5"}), _session() as session, \
+                pytest.raises(requests.ConnectionError, match="Refused"):
+            session.get(f"http://service.test:{listener.port}/", timeout=3)
+
+        assert listener.received == []
+
+    def test_it_ends_with_the_block(self, dns, listener):
+        from pybreeze.utils.network.public_http import approved_local_addresses
+
+        with approved_local_addresses({"127.0.0.1"}):
+            pass
+
+        with _session() as session, pytest.raises(requests.ConnectionError, match="Refused"):
+            session.get(f"http://service.test:{listener.port}/", timeout=3)
+
+    def test_it_ends_with_the_block_when_the_request_fails(self):
+        from pybreeze.utils.network import public_http
+
+        with pytest.raises(ValueError), public_http.approved_local_addresses({"127.0.0.1"}):
+            raise ValueError("the request failed")
+
+        assert public_http._approved() == frozenset()
+
+    def test_an_inner_block_gives_way_to_the_outer_one_again(self):
+        from pybreeze.utils.network import public_http
+
+        with public_http.approved_local_addresses({"127.0.0.1"}):
+            with public_http.approved_local_addresses({"10.0.0.5"}):
+                assert public_http._approved() == {"10.0.0.5"}
+            assert public_http._approved() == {"127.0.0.1"}
+
+    def test_another_thread_is_not_covered(self):
+        from pybreeze.utils.network import public_http
+
+        seen = []
+        with public_http.approved_local_addresses({"127.0.0.1"}):
+            other = threading.Thread(target=lambda: seen.append(public_http._approved()))
+            other.start()
+            other.join(5)
+
+        assert seen == [frozenset()]
