@@ -801,3 +801,367 @@ def test_the_tab_is_a_tool_of_the_mcp_category(app, home):
         assert isinstance(widget, McpClientGUI)
     finally:
         widget.deleteLater()
+
+
+# ----------------------------------------------------------------------
+# A server that changes what it offers
+# ----------------------------------------------------------------------
+
+@pytest.fixture
+def changing(app, home, answers):
+    """The tab, with a server that can change what it offers; ``change`` and ``echo`` are trusted."""
+    save_profiles([_profile("fake", "--changing", trusted_tools=frozenset({"change", "echo"}))])
+    gui = McpClientGUI()
+    yield gui
+    gui.cancel()
+    _until(lambda: not gui.is_busy())
+    gui.close()
+    gui.deleteLater()
+    _until(lambda: not running_kept())
+
+
+@pytest.fixture
+def readings(monkeypatch) -> list[frozenset]:
+    """The lists each reading-again asked for, in order."""
+    from pybreeze.pybreeze_ui.mcp_gui import mcp_client_gui
+
+    asked: list[frozenset] = []
+    read = mcp_client_gui._listed_again
+
+    def recording(client, lists, cancel):
+        asked.append(lists)
+        return read(client, lists, cancel)
+
+    monkeypatch.setattr(mcp_client_gui, "_listed_again", recording)
+    return asked
+
+
+def _tools(tab: McpClientGUI) -> list[str]:
+    tools = tab.tools_panel.tool_list
+    return [tools.item(row).text() for row in range(tools.count())]
+
+
+def _shows(tab: McpClientGUI, tool: str) -> None:
+    """Wait until the tools page lists *tool* and nothing is on its way."""
+    _until(lambda: tool in _tools(tab) and not tab.is_busy())
+
+
+def _for_a_while(seconds: float) -> None:
+    """Let the event loop run for *seconds*: what must not happen gets its chance to."""
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline:
+        QApplication.processEvents()
+        time.sleep(0.005)
+
+
+def test_what_a_server_adds_is_listed_without_connecting_again(changing):
+    _connected(changing)
+    assert changing.tools_panel.tool_list.count() == 12
+
+    _call(changing, "change", {"add": "later_tool"})
+    _shows(changing, "later_tool")
+
+    assert changing.is_connected()
+    assert changing.tools_panel.tool_list.count() == 13
+    assert changing.resources_panel.item_list.count() == 3
+    assert changing.prompts_panel.item_list.count() == 2
+    assert changing.status.state is State.SUCCESS
+    assert changing.status.text() == _word("mcp_client_refreshed").format(
+        server="fake-server", tools=13, resources=3, prompts=2)
+
+
+def test_the_lists_that_changed_together_are_read_in_one_go_after_the_call(changing, readings):
+    # The three notifications arrive while the call is still on its way
+    _connected(changing)
+
+    _call(changing, "change", {"add": "later_tool"})
+    _shows(changing, "later_tool")
+
+    assert readings == [frozenset({"tools", "resources", "prompts"})]
+    assert changing.tools_panel.result_view.toPlainText() == "changed"
+    assert _calls(changing) == [("change", _word("mcp_calls_status_passed"))]
+
+
+def test_only_the_list_the_server_named_is_read_again(changing, readings):
+    _connected(changing)
+
+    _call(changing, "change", {"add": "later_tool", "say": ["tools"]})
+    _shows(changing, "later_tool")
+
+    assert readings == [frozenset({"tools"})]
+    assert changing.resources_panel.item_list.count() == 2
+
+
+def test_the_word_is_taken_on_the_ui_thread_and_the_lists_are_read_off_it(app, home, answers, monkeypatch):
+    import threading
+
+    from pybreeze.pybreeze_ui.mcp_gui import mcp_client_gui
+
+    taken_on, read_on = [], []
+    take, read = McpClientGUI._note_changed, mcp_client_gui._listed_again
+
+    def taking(self, client, changed):
+        taken_on.append(threading.current_thread())
+        take(self, client, changed)
+
+    def reading(client, lists, cancel):
+        read_on.append(threading.current_thread())
+        return read(client, lists, cancel)
+
+    monkeypatch.setattr(McpClientGUI, "_note_changed", taking)
+    monkeypatch.setattr(mcp_client_gui, "_listed_again", reading)
+    save_profiles([_profile("fake", "--changing", trusted_tools=frozenset({"change"}))])
+    gui = McpClientGUI()
+    try:
+        _connected(gui)
+        _call(gui, "change", {"add": "later_tool"})
+        _shows(gui, "later_tool")
+
+        assert taken_on and all(thread is threading.main_thread() for thread in taken_on)
+        assert read_on and all(thread is not threading.main_thread() for thread in read_on)
+    finally:
+        gui.close()
+        gui.deleteLater()
+        _until(lambda: not running_kept())
+
+
+def test_what_is_selected_and_typed_stays_when_the_lists_are_filled_again(changing):
+    _connected(changing)
+    _call(changing, "change", {"add": "later_tool", "later": 0.5})
+    # Half-written, and not even JSON yet: what a user is in the middle of
+    _select_tool(changing, "echo")
+    changing.tools_panel.arguments_edit.setPlainText('{"text": "half wri')
+    prompts = changing.prompts_panel
+    prompts.arguments_edit.setPlainText('{"code": "def f(): pa')
+    prompts.show_content("the prompt got before")
+
+    _shows(changing, "later_tool")
+
+    assert changing.tools_panel.selected_tool().name == "echo"
+    assert changing.tools_panel.arguments_edit.toPlainText() == '{"text": "half wri'
+    assert changing.tools_panel.result_view.toPlainText() == "changed"
+    assert prompts.selected().name == "review"
+    assert prompts.arguments_edit.toPlainText() == '{"code": "def f(): pa'
+    assert prompts.content_view.toPlainText() == "the prompt got before"
+    assert prompts.item_list.count() == 2
+
+
+def test_a_selected_tool_the_server_took_away_gives_way_to_the_first(changing):
+    _connected(changing)
+    _call(changing, "change", {"remove": "echo", "later": 0.5})
+    _select_tool(changing, "echo", {"text": "for a tool that is going"})
+
+    _until(lambda: "echo" not in _tools(changing) and not changing.is_busy())
+
+    assert changing.tools_panel.selected_tool().name == "write_file"
+    assert json.loads(changing.tools_panel.arguments_edit.toPlainText()) == {"path": "", "content": ""}
+
+
+def test_a_trusted_tool_the_server_changed_is_asked_about_again(changing, answers, readings):
+    _connected(changing)
+    _call(changing, "echo", {"text": "trusted"})
+    assert answers.asked == []
+
+    _call(changing, "change", {"describe": "echo"})
+    _until(lambda: readings and not changing.is_busy())
+    _call(changing, "echo", {"text": "is it still what it was"})
+
+    assert [asked["text"] for asked in answers.asked] == [_asked("mcp_confirm_question", tool="echo", server="fake")]
+    assert "Now does something else." in changing.tools_panel.detail_view.toPlainText()
+
+
+def test_a_yes_with_the_box_ticked_trusts_the_changed_tool_again(changing, answers, readings):
+    _connected(changing)
+    _call(changing, "change", {"describe": "echo"})
+    _until(lambda: readings and not changing.is_busy())
+    answers.tick = True
+
+    _call(changing, "echo", {"text": "one"})
+    _call(changing, "echo", {"text": "two"})
+
+    assert len(answers.asked) == 1
+
+
+def test_a_trusted_tool_the_server_left_alone_is_not_asked_about(changing, answers, readings):
+    _connected(changing)
+    _call(changing, "change", {"add": "later_tool"})
+    _shows(changing, "later_tool")
+
+    _call(changing, "echo", {"text": "as before"})
+    _call(changing, "change", {})
+
+    assert answers.asked == []
+
+
+def test_a_tool_the_server_added_is_not_trusted(changing, answers):
+    _connected(changing)
+    _call(changing, "change", {"add": "later_tool"})
+    _shows(changing, "later_tool")
+
+    _call(changing, "later_tool", {"text": "new here"})
+
+    assert [asked["text"] for asked in answers.asked] == [
+        _asked("mcp_confirm_question", tool="later_tool", server="fake")]
+
+
+def test_a_word_from_a_server_let_go_of_is_not_taken(changing, readings):
+    from pybreeze.utils.mcp.mcp_client import McpClient
+
+    _connected(changing)
+    stranger = McpClient(_profile("someone else"))
+
+    changing.list_changed.emit(stranger, "tools")
+    _for_a_while(0.4)
+
+    assert readings == []
+    assert not changing.is_busy()
+
+
+def test_disconnecting_forgets_a_change_that_was_not_read_yet(changing, readings):
+    _connected(changing)
+    _call(changing, "change", {"add": "later_tool", "later": 0.2})
+
+    changing.disconnect_server()
+    _for_a_while(0.6)
+
+    assert readings == []
+    assert not changing.is_busy()
+    assert changing.tools_panel.tool_list.count() == 0
+
+
+def test_a_server_that_goes_away_while_its_lists_are_read_again_is_said(changing, monkeypatch):
+    from pybreeze.pybreeze_ui.mcp_gui import mcp_client_gui
+    from pybreeze.utils.exception.exceptions import McpException
+
+    def gone(client, _lists, _cancel):
+        client.close()
+        raise McpException("the server went away")
+
+    _connected(changing)
+    monkeypatch.setattr(mcp_client_gui, "_listed_again", gone)
+
+    _call(changing, "change", {"add": "later_tool"})
+    _until(lambda: not changing.is_connected() and not changing.is_busy())
+
+    assert changing.status.state is State.ERROR
+    assert changing.tools_panel.tool_list.count() == 0
+
+
+# ----------------------------------------------------------------------
+# The pages, filled again
+# ----------------------------------------------------------------------
+
+def _tool(name: str, description: str = "", *required: str):
+    from pybreeze.utils.mcp.mcp_client import McpTool
+
+    return McpTool(name=name, description=description, input_schema={"required": list(required)})
+
+
+def test_typing_in_the_filter_leaves_the_arguments_typed_for_the_tool(app):
+    # Each letter typed used to start the selected tool's arguments again
+    panel = mcp_panels.McpToolsPanel()
+    panel.show_tools([_tool("echo", "", "text"), _tool("write_file", "", "path")])
+    panel.arguments_edit.setPlainText('{"text": "kept"}')
+
+    panel.filter_edit.setText("ec")
+
+    assert panel.selected_tool().name == "echo"
+    assert panel.arguments_edit.toPlainText() == '{"text": "kept"}'
+
+
+def test_another_tool_starts_its_own_arguments(app):
+    panel = mcp_panels.McpToolsPanel()
+    panel.show_tools([_tool("echo", "", "text"), _tool("write_file", "", "path")])
+    panel.arguments_edit.setPlainText('{"text": "for echo"}')
+
+    panel.tool_list.setCurrentRow(1)
+
+    assert json.loads(panel.arguments_edit.toPlainText()) == {"path": ""}
+
+
+def test_a_new_servers_tool_of_the_same_name_starts_again(app):
+    panel = mcp_panels.McpToolsPanel()
+    panel.show_tools([_tool("echo", "", "text")])
+    panel.arguments_edit.setPlainText('{"text": "for the other server"}')
+    panel.show_result("its answer")
+
+    panel.show_tools([_tool("echo", "", "text")])
+
+    assert json.loads(panel.arguments_edit.toPlainText()) == {"text": ""}
+    assert panel.result_view.toPlainText() == ""
+
+
+def test_tools_filled_again_show_what_the_server_now_says_of_the_selected_one(app):
+    panel = mcp_panels.McpToolsPanel()
+    panel.show_tools([_tool("alpha"), _tool("echo", "Gives text back.", "text")])
+    panel.tool_list.setCurrentRow(1)
+    panel.arguments_edit.setPlainText("typed")
+
+    panel.refresh_tools([_tool("echo", "Now sends mail.", "text", "to"), _tool("alpha")])
+
+    assert panel.selected_tool().name == "echo"
+    assert "Now sends mail." in panel.detail_view.toPlainText()
+    assert panel.arguments_edit.toPlainText() == "typed"
+    assert panel.call_button.isEnabled()
+
+
+def test_tools_filled_again_keep_to_the_filter(app):
+    panel = mcp_panels.McpToolsPanel()
+    panel.show_tools([_tool("echo"), _tool("write_file")])
+    panel.filter_edit.setText("write")
+
+    panel.refresh_tools([_tool("echo"), _tool("write_file"), _tool("write_more")])
+
+    shown = [panel.tool_list.item(row).text() for row in range(panel.tool_list.count())
+             if not panel.tool_list.item(row).isHidden()]
+    assert shown == ["write_file", "write_more"]
+    assert panel.selected_tool().name == "write_file"
+
+
+def test_no_tools_left_empties_the_page(app):
+    panel = mcp_panels.McpToolsPanel()
+    panel.show_tools([_tool("echo", "", "text")])
+
+    panel.refresh_tools([])
+
+    assert panel.selected_tool() is None
+    assert panel.arguments_edit.toPlainText() == ""
+    assert not panel.call_button.isEnabled()
+
+
+def test_items_filled_again_keep_the_selected_one_and_what_is_typed(app):
+    panel = mcp_panels.McpItemsPanel("mcp_prompts_get_button", "mcp_prompts_arguments_label")
+    panel.show_items([("first", "one", 1, {}), ("review", "Ask for a review.", 2, {"code": ""})])
+    panel.item_list.setCurrentRow(1)
+    panel.arguments_edit.setPlainText("typed")
+    panel.show_content("got before")
+
+    panel.refresh_items([("added", "new", 3, {}), ("review", "Ask for a kinder review.", 4, {"code": ""})])
+
+    assert panel.selected() == 4
+    assert panel.detail_view.toPlainText() == "Ask for a kinder review."
+    assert panel.arguments_edit.toPlainText() == "typed"
+    assert panel.content_view.toPlainText() == "got before"
+
+
+def test_an_item_that_is_gone_gives_way_to_the_first(app):
+    panel = mcp_panels.McpItemsPanel("mcp_prompts_get_button", "mcp_prompts_arguments_label")
+    panel.show_items([("review", "Ask for a review.", 1, {"code": ""})])
+    panel.arguments_edit.setPlainText("typed")
+
+    panel.refresh_items([("summary", "Sum it up.", 2, {"text": ""})])
+
+    assert panel.selected() == 2
+    assert json.loads(panel.arguments_edit.toPlainText()) == {"text": ""}
+    assert panel.action_button.isEnabled()
+
+
+def test_no_items_left_empties_the_page(app):
+    panel = mcp_panels.McpItemsPanel("mcp_resources_read_button")
+    panel.show_items([("greeting", "memo://greeting", 1, {})])
+
+    panel.refresh_items([])
+
+    assert panel.selected() is None
+    assert panel.detail_view.toPlainText() == ""
+    assert not panel.action_button.isEnabled()

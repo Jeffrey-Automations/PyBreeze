@@ -67,8 +67,5 @@
   （`pybreeze/pybreeze_ui/editor_main/main_ui.py`）。拿掉那一行，執行、JupyterLab 分頁、prthinker 與語言伺服器就會從一開始用存下來的直譯器；但存下來的路徑可能已經不存在，要不要這樣做由擁有者決定。
 - **#131** 〔決定〕MCP 用戶端只支援標準輸入輸出的傳輸。協定的 HTTP 傳輸多半用在同一台機器上的伺服器，而對外請求的規則（CLAUDE.md，Network）拒絕 loopback 與私有位址。
   要提供的話，得先決定使用者填在伺服器設定裡的網址能不能是 loopback（JupyterLab 分頁自己的伺服器就是），以及請求要帶什麼送出。
-- **#132** MCP 用戶端分頁不會跟著伺服器的 `notifications/tools/list_changed`（resources 與 prompts 的也是）更新：通知到達的是讀取伺服器的那條執行緒，沒有東西把它帶到分頁。
-  目前要重新連線才看得到新的工具。`McpClient.on_notification` 已經留好掛點；還缺一個送到 UI 執行緒的訊號，以及在不弄丟已輸入內容的前提下重填各頁。
-  用戶端不提供伺服器 sampling、roots、elicitation 是既定決定（`docs/adr/0011`）。
 - **#128** 打包版（`exe/`）沒有動作腳本的語言服務：`sys.executable` 是應用程式本身，沒有直譯器可以啟動 `extend/language_server/__main__.py`，`launch.can_serve()` 為 false。
   關鍵字探測在那裡仍然可用。缺的是啟動伺服器的方法：在打包的執行檔加第二個進入點（像 regex tester 的 worker），或用 PATH 上的直譯器並把 PyBreeze 的套件資料夾放進它的路徑。

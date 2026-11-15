@@ -47,6 +47,12 @@ _POLL_SECONDS = 0.05
 _MAX_PAGES = 100
 # A remote error's message is cut to this: it is the server's text, shown in a status line
 _MESSAGE_CHARACTERS = 500
+#: The notification a server sends when one of its lists is no longer what it was, and the list it means
+LIST_CHANGED: dict[str, str] = {
+    "notifications/tools/list_changed": "tools",
+    "notifications/resources/list_changed": "resources",
+    "notifications/prompts/list_changed": "prompts",
+}
 
 
 class McpTimeout(McpException):
@@ -134,6 +140,11 @@ class McpPrompt:
     name: str
     description: str = ""
     arguments: tuple[tuple[str, str, bool], ...] = ()
+
+
+def changed_list(method: str) -> str | None:
+    """The list (``tools``, ``resources``, ``prompts``) the notification *method* says has changed, or ``None``."""
+    return LIST_CHANGED.get(method)
 
 
 def _text(data: object, key: str) -> str:

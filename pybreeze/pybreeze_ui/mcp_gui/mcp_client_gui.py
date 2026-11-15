@@ -11,6 +11,13 @@ server needs no asking. What a server says of its own tool ("changes nothing")
 is shown and not relied on. A server found in the project's ``.mcp.json`` is
 asked about before it is even started.
 
+A server may change what it offers while it is connected, and says so
+(``notifications/.../list_changed``). The word arrives on the thread that reads
+the server; a signal carries it to the UI thread, the lists it names are read
+again on a worker, and the pages are filled again around what the user has
+selected and typed. A trusted tool that is no longer what it was when it was
+trusted is asked about again.
+
 Every call is kept in the session's log as a result of an execution report
 (``utils/mcp/mcp_call_log.py``), with secrets taken out, and the session can be
 exported.
@@ -19,11 +26,13 @@ from __future__ import annotations
 
 import threading
 import time
+import weakref
+from collections.abc import Callable
 from dataclasses import dataclass
 from importlib import metadata as installed
 from pathlib import Path
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QTimer, Qt, Signal
 from PySide6.QtWidgets import QCheckBox, QFileDialog, QMessageBox, QSplitter, QTabWidget, QVBoxLayout, QWidget
 from je_editor import language_wrapper
 
@@ -42,9 +51,14 @@ from pybreeze.utils.json_format.view_safe import dumps_for_view
 from pybreeze.utils.logging.logger import pybreeze_logger
 from pybreeze.utils.mcp.mcp_call_log import McpCallLog
 from pybreeze.utils.mcp.mcp_client import (
-    McpClient, McpPrompt, McpResource, McpServerInfo, McpTool, McpToolResult,
+    McpClient, McpPrompt, McpResource, McpServerInfo, McpTool, McpToolResult, changed_list,
 )
 from pybreeze.utils.mcp.mcp_profile import McpServerProfile
+
+
+# A server that changes several lists says so once for each, one after the other:
+# they are read again together, this long after the last word of it
+_REFRESH_DELAY_MS = 150
 
 
 def _word(key: str) -> str:
@@ -89,6 +103,72 @@ def _opened(client: McpClient, profile: McpServerProfile) -> _Session:
 
 
 @dataclass(frozen=True)
+class _Relisted:
+    """The lists of a server read again; ``None`` for one that was not."""
+
+    client: McpClient
+    tools: list[McpTool] | None
+    resources: list[McpResource] | None
+    prompts: list[McpPrompt] | None
+
+
+def _listed_again(client: McpClient, lists: frozenset[str], cancel: threading.Event) -> _Relisted:
+    """Read the *lists* of *client*'s server again. Runs on a worker thread.
+
+    :raises McpException: when the server does not answer, or the reading was cancelled
+    """
+    return _Relisted(
+        client,
+        client.list_tools(cancel) if "tools" in lists else None,
+        client.list_resources(cancel) if "resources" in lists else None,
+        client.list_prompts(cancel) if "prompts" in lists else None)
+
+
+def _hearing(tab_ref: weakref.ref, client_ref: weakref.ref) -> Callable[[str, dict], None]:
+    """What a client calls with each notification: a changed list is passed on to the tab.
+
+    Called on the thread that reads the server, so all it does is emit the
+    tab's signal, which Qt delivers on the UI thread. Over weak references:
+    the client must not keep a closed tab alive, nor itself.
+    """
+    def take(method: str, _params: dict) -> None:
+        changed = changed_list(method)
+        tab, client = tab_ref(), client_ref()
+        if changed is None or tab is None or client is None:
+            return
+        try:
+            tab.list_changed.emit(client, changed)
+        except RuntimeError as error:  # the tab was deleted while its server was still talking
+            pybreeze_logger.debug("mcp_client_gui.py changed list not passed on: %r", error)
+    return take
+
+
+def _resource_items(resources: list[McpResource]) -> list[tuple[str, str, object, dict]]:
+    """*resources* as the resources page lists them."""
+    return [
+        (resource.name or resource.uri, "\n".join(filter(None, (
+            resource.uri, resource.mime_type, resource.description))), resource, {})
+        for resource in resources]
+
+
+def _prompt_items(prompts: list[McpPrompt]) -> list[tuple[str, str, object, dict]]:
+    """*prompts* as the prompts page lists them, each starting with the arguments it requires."""
+    return [
+        (prompt.name, "\n".join(filter(None, (prompt.description, *(
+            f"{name}: {description}" for name, description, _required in prompt.arguments)))), prompt,
+         {name: "" for name, _description, required in prompt.arguments if required})
+        for prompt in prompts]
+
+
+def _no_longer_as_trusted(session: _Session, tools: list[McpTool]) -> set[str]:
+    """The trusted tools of *session* that *tools* describes differently than the session did."""
+    before = {tool.name: tool for tool in session.tools}
+    return {
+        tool.name for tool in tools
+        if tool.name in session.profile.trusted_tools and before.get(tool.name) != tool}
+
+
+@dataclass(frozen=True)
 class _Call:
     """A tool call on its way: what was asked, and when (by the clock, and by a timer that only goes forward)."""
 
@@ -100,6 +180,10 @@ class _Call:
 
 class McpClientGUI(QWidget):
     """Connect to an MCP server, see its tools, resources and prompts, and call them."""
+
+    #: (client, list): a server said one of its lists changed. Emitted on the
+    #: thread that reads the server, taken on the UI thread
+    list_changed = Signal(object, str)
 
     def __init__(self, main_window=None) -> None:
         """
@@ -114,6 +198,17 @@ class McpClientGUI(QWidget):
         self._busy = False
         self._call: _Call | None = None
         self._cancel = threading.Event()
+        # The client connected or connecting: a word from any other is from a server let go of
+        self._client: McpClient | None = None
+        # The lists the server said have changed and that are still to be read again
+        self._stale: set[str] = set()
+        # Trusted tools the server has changed since: asked about again, this session
+        self._ask_again: set[str] = set()
+        self._refresh_timer = QTimer(self)
+        self._refresh_timer.setSingleShot(True)
+        self._refresh_timer.setInterval(_REFRESH_DELAY_MS)
+        self._refresh_timer.timeout.connect(self._refresh_stale)
+        self.list_changed.connect(self._note_changed)
 
         self.server_panel = McpServerPanel(Path.cwd())
         self.server_panel.connect_asked.connect(self.connect_server)
@@ -177,6 +272,9 @@ class McpClientGUI(QWidget):
         self.tools_panel.set_busy(busy)
         self.resources_panel.set_busy(busy)
         self.prompts_panel.set_busy(busy)
+        if not busy and self._stale:
+            # A list changed while something else was on its way: its turn now
+            self._refresh_timer.start()
 
     def cancel(self) -> None:
         """Give up what is on its way: the worker stops waiting and the server is told."""
@@ -215,6 +313,8 @@ class McpClientGUI(QWidget):
         self._let_go()
         self._show_offer(None)
         client = McpClient(profile, _client_version())
+        client.on_notification = _hearing(weakref.ref(self), weakref.ref(client))
+        self._client = client
         self._start(lambda: _opened(client, profile), self._connected,
                     _word("mcp_client_connecting").format(name=profile.name))
         return True
@@ -244,20 +344,71 @@ class McpClientGUI(QWidget):
     def _show_offer(self, session: _Session | None) -> None:
         """Show what *session*'s server offers on the pages; nothing for no session."""
         self.tools_panel.show_tools(session.tools if session is not None else [])
-        self.resources_panel.show_items([
-            (resource.name or resource.uri, "\n".join(filter(None, (
-                resource.uri, resource.mime_type, resource.description))), resource, {})
-            for resource in (session.resources if session is not None else [])])
-        self.prompts_panel.show_items([
-            (prompt.name, "\n".join(filter(None, (prompt.description, *(
-                f"{name}: {description}" for name, description, _required in prompt.arguments)))), prompt,
-             {name: "" for name, _description, required in prompt.arguments if required})
-            for prompt in (session.prompts if session is not None else [])])
+        self.resources_panel.show_items(_resource_items(session.resources if session is not None else []))
+        self.prompts_panel.show_items(_prompt_items(session.prompts if session is not None else []))
         self.server_panel.show_connected(session is not None)
+
+    # ------------------------------------------------------------------
+    # A server that changes what it offers
+    # ------------------------------------------------------------------
+
+    def _note_changed(self, client: McpClient, changed: str) -> None:
+        """A server said one of its lists changed: read it again soon. On the UI thread."""
+        if client is not self._client:
+            return
+        self._stale.add(changed)
+        self._refresh_timer.start()
+
+    def _refresh_stale(self) -> None:
+        """Read the lists that changed again, on a worker; later, when something else is on its way."""
+        if self._busy or not self._stale:
+            return
+        session = self._session
+        if session is None or session.client.closed:
+            self._stale.clear()
+            return
+        # A server is asked only for what it said it has
+        lists = frozenset(self._stale & session.server.capabilities)
+        self._stale.clear()
+        if not lists:
+            return
+        self._cancel = threading.Event()
+        client, cancel = session.client, self._cancel
+        self._start(lambda: _listed_again(client, lists, cancel), self._refreshed,
+                    _word("mcp_client_refreshing").format(name=session.profile.name))
+
+    def _refreshed(self, relisted: _Relisted) -> None:
+        """Fill the pages again with the lists read, around what is selected and typed."""
+        session = self._session
+        if session is None or session.client is not relisted.client:
+            self._show_busy(False)
+            return
+        if relisted.tools is not None:
+            self._ask_again |= _no_longer_as_trusted(session, relisted.tools)
+        session = _Session(
+            session.client, session.profile, session.server,
+            session.tools if relisted.tools is None else relisted.tools,
+            session.resources if relisted.resources is None else relisted.resources,
+            session.prompts if relisted.prompts is None else relisted.prompts)
+        self._session = session
+        if relisted.tools is not None:
+            self.tools_panel.refresh_tools(session.tools)
+        if relisted.resources is not None:
+            self.resources_panel.refresh_items(_resource_items(session.resources))
+        if relisted.prompts is not None:
+            self.prompts_panel.refresh_items(_prompt_items(session.prompts))
+        self._show_busy(False)
+        self.status.show_state(State.SUCCESS, _word("mcp_client_refreshed").format(
+            server=session.server.name or session.profile.name,
+            tools=len(session.tools), resources=len(session.resources), prompts=len(session.prompts)))
 
     def _let_go(self) -> None:
         """End the connected server, if any, without waiting for it on this thread."""
         session, self._session = self._session, None
+        self._client = None
+        self._stale.clear()
+        self._ask_again.clear()
+        self._refresh_timer.stop()
         self._cancel.set()
         if session is not None:
             threading.Thread(target=session.client.close, name="pybreeze-mcp-close", daemon=True).start()
@@ -290,7 +441,8 @@ class McpClientGUI(QWidget):
             self.status.show_state(State.ERROR, _word("mcp_client_arguments_not_object"))
             return False
         started = time.time()
-        if tool.name not in session.profile.trusted_tools and not self._confirmed(session, tool, arguments):
+        trusted = tool.name in session.profile.trusted_tools and tool.name not in self._ask_again
+        if not trusted and not self._confirmed(session, tool, arguments):
             self._log.record_declined(tool.name, arguments, started)
             self.calls_panel.show_results(self._log.results())
             self.status.show_state(State.NEUTRAL, _word("mcp_client_declined").format(tool=tool.name))
@@ -316,6 +468,7 @@ class McpClientGUI(QWidget):
         box.setDefaultButton(QMessageBox.StandardButton.No)
         agreed = box.exec() == QMessageBox.StandardButton.Yes
         if agreed and trust.isChecked():
+            self._ask_again.discard(tool.name)
             trusting = self.server_panel.trust(session.profile, tool.name)
             self._session = _Session(session.client, trusting, session.server, session.tools, session.resources,
                                      session.prompts)
