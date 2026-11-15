@@ -1,6 +1,7 @@
 """The navigation panel: what the menus hold, as a tree that stays in view and can be searched."""
 from __future__ import annotations
 
+import importlib.util
 import json
 import logging
 import os
@@ -11,13 +12,18 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
 from je_editor import language_wrapper
-from PySide6.QtWidgets import QApplication, QMainWindow, QMenu, QMenuBar, QTabWidget
+from PySide6.QtWidgets import QApplication, QDockWidget, QMainWindow, QMenu, QMenuBar, QTabWidget
 from test_utils.started_window import run_started_window
 
 from pybreeze.extend_multi_language.update_language_dict import update_language_dict
 from pybreeze.pybreeze_ui.design.tokens import State, em
 from pybreeze.pybreeze_ui.menu.tools import tools_menu
-from pybreeze.pybreeze_ui.navigation.navigation_dock import VISIBLE_STATE, NavigationDock
+from pybreeze.pybreeze_ui.navigation.navigation_dock import (
+    NAVIGATION_VIEW,
+    VISIBLE_STATE,
+    NavigationDock,
+    NavigationPanel,
+)
 from pybreeze.pybreeze_ui.navigation.navigation_model import (
     CATEGORIES,
     NavigationEntry,
@@ -25,6 +31,13 @@ from pybreeze.pybreeze_ui.navigation.navigation_model import (
     entries_from_menu,
 )
 from pybreeze.utils.ui_state import read_ui_state
+
+
+# Whether the JEditor in use gives its window a shell (activity bar, side bar):
+# with one the navigation is a view of the side bar, and without one a dock
+JEDITOR_HAS_A_SHELL = importlib.util.find_spec("je_editor.pyside_ui.main_ui.shell") is not None
+in_the_side_bar = pytest.mark.skipif(not JEDITOR_HAS_A_SHELL, reason="this JEditor's window has no shell")
+in_a_dock = pytest.mark.skipif(JEDITOR_HAS_A_SHELL, reason="this JEditor's window has a shell")
 
 
 @pytest.fixture(scope="module")
@@ -302,6 +315,26 @@ class TestDock:
         assert read_ui_state() == {VISIBLE_STATE: False}
 
 
+class TestThePanelOnItsOwn:
+    """The panel without a dock around it, as the side bar holds it."""
+
+    @pytest.fixture
+    def panel(self, app):
+        made = NavigationPanel(_navigation([]))
+        yield made
+        made.deleteLater()
+
+    def test_it_is_a_plain_widget_with_the_tree_and_the_box(self, panel):
+        assert not isinstance(panel, QDockWidget)
+        assert panel.tree.topLevelItemCount() == 2
+        assert panel.minimumWidth() == 14 * em(panel)
+
+    def test_the_dock_shows_the_same_parts(self, dock):
+        assert dock.widget() is dock.panel
+        assert (dock.tree, dock.filter_edit, dock.status) == (
+            dock.panel.tree, dock.panel.filter_edit, dock.panel.status)
+
+
 def test_the_dock_menu_entry_remembers_what_it_was_set_to(home):
     from pybreeze.pybreeze_ui.editor_main.main_ui import _remember_navigation_visible
 
@@ -316,18 +349,16 @@ from pathlib import Path
 Path.home = classmethod(lambda cls: Path.cwd())
 """
 
-_THE_SHELL = """
+# What every start reads, wherever the panel is: its lines, and what one of them opens
+_THE_PANEL = """
 from PySide6.QtCore import Qt
-dock = window.navigation_dock
-tree = dock.tree
-hidden_at_start = dock.isHidden()
+tree = window.navigation_panel.tree
 
 def lines(item):
     return [item.child(row).text(0) for row in range(item.childCount())]
 
 categories = {tree.topLevelItem(index).text(0): lines(tree.topLevelItem(index))
               for index in range(tree.topLevelItemCount())}
-toggle = dock.toggleViewAction()
 tabs_before = window.tab_widget.count()
 tools = tree.topLevelItem(1)
 line = next(tools.child(row) for row in range(tools.childCount()) if tools.child(row).text(0) == "HTTP Status")
@@ -335,32 +366,60 @@ tree.itemActivated.emit(line, 0)
 window.resize(1000, 700)
 image = window.grab().toImage()
 colours = {image.pixel(x, y) for x in range(0, image.width(), 8) for y in range(0, image.height(), 8)}
-toggle.trigger()
 result = {
-    "set_to": toggle.isChecked(),
     "categories": categories,
-    "hidden_at_start": hidden_at_start,
-    "at_the_left": window.dockWidgetArea(dock) == Qt.DockWidgetArea.LeftDockWidgetArea,
-    "in_the_dock_menu": toggle in window.dock_menu.actions(),
-    "entry": toggle.text(),
     "opened": window.tab_widget.count() - tabs_before,
     "opened_tab": window.tab_widget.tabText(window.tab_widget.count() - 1),
     "picture": [image.width(), image.height()],
     "colours": len(colours),
-    "remembered": Path.home().joinpath(".pybreeze", "ui_state.json").read_text(encoding="utf-8"),
 }
+"""
+
+# The panel as a dock: a JEditor whose window has no shell
+_THE_DOCK = """
+dock = window.navigation_dock
+toggle = dock.toggleViewAction()
+hidden_at_start = dock.isHidden()
+toggle.trigger()
+result.update({
+    "set_to": toggle.isChecked(),
+    "hidden_at_start": hidden_at_start,
+    "at_the_left": window.dockWidgetArea(dock) == Qt.DockWidgetArea.LeftDockWidgetArea,
+    "in_the_dock_menu": toggle in window.dock_menu.actions(),
+    "entry": toggle.text(),
+    "remembered": Path.home().joinpath(".pybreeze", "ui_state.json").read_text(encoding="utf-8"),
+})
+"""
+
+# The panel as a view of the side bar: a JEditor whose window has a shell
+_THE_SIDE_BAR_VIEW = """
+workbench = window.workbench
+icon = workbench.activity_bar.action_of("pybreeze_navigation")
+result.update({
+    "shown_at_start": workbench.is_view_shown("pybreeze_navigation"),
+    "in_the_side_bar": "pybreeze_navigation" in workbench.view_ids("side"),
+    "header": workbench.side_bar.header.text(),
+    "icon_tip": icon.toolTip(),
+    "icon_is_drawn": not icon.icon().isNull(),
+    "in_the_view_menu": "Navigation" in [action.text() for action in window.view_menu.actions()],
+    "there_is_no_dock": window.navigation_dock is None,
+    "listed_in_itself": "Navigation" in str(categories),
+})
+workbench.show_view("explorer")
+result["hidden_by_the_explorer"] = not workbench.is_view_shown("pybreeze_navigation")
 """
 
 
 @pytest.fixture(scope="module")
 def shell(tmp_path_factory) -> dict:
     """What the real main window showed, started once for the tests below."""
+    where = _THE_SIDE_BAR_VIEW if JEDITOR_HAS_A_SHELL else _THE_DOCK
     return run_started_window(
-        tmp_path_factory.mktemp("shell"), _THE_SHELL, before_window=_HOME_IS_THE_WORKING_FOLDER)
+        tmp_path_factory.mktemp("shell"), _THE_PANEL + where, before_window=_HOME_IS_THE_WORKING_FOLDER)
 
 
 class TestTheMainWindow:
-    def test_the_shell_has_the_navigation_at_its_left(self, shell):
+    def test_the_navigation_lists_what_the_menus_hold(self, shell):
         seen = shell
 
         assert list(seen["categories"]) == ["Automation", "Tools", "MCP", "Reports", "Settings"]
@@ -369,16 +428,6 @@ class TestTheMainWindow:
         assert "APITestka" in seen["categories"]["Automation"]
         assert {"SSH", "AI", "cURL Import", "HTTP Status"} <= set(seen["categories"]["Tools"])
         assert {"UI Style", "Language", "Install"} <= set(seen["categories"]["Settings"])
-        assert seen["at_the_left"]
-        assert not seen["hidden_at_start"]
-
-    def test_the_dock_menu_shows_and_hides_it_and_that_is_remembered(self, shell):
-        seen = shell
-
-        assert seen["in_the_dock_menu"]
-        assert seen["entry"] == "Navigation"
-        # The entry was used once, and what it was set to is what the next start reads
-        assert json.loads(seen["remembered"]) == {VISIBLE_STATE: seen["set_to"]}
 
     def test_a_line_of_the_real_tree_opens_its_tab(self, shell):
         seen = shell
@@ -393,11 +442,67 @@ class TestTheMainWindow:
         assert min(seen["picture"]) >= 700
         assert seen["colours"] > 8
 
+
+@in_a_dock
+class TestTheNavigationAsADock:
+    def test_it_is_at_the_left_and_shown(self, shell):
+        seen = shell
+
+        assert seen["at_the_left"]
+        assert not seen["hidden_at_start"]
+
+    def test_the_dock_menu_shows_and_hides_it_and_that_is_remembered(self, shell):
+        seen = shell
+
+        assert seen["in_the_dock_menu"]
+        assert seen["entry"] == "Navigation"
+        # The entry was used once, and what it was set to is what the next start reads
+        assert json.loads(seen["remembered"]) == {VISIBLE_STATE: seen["set_to"]}
+
     def test_closed_last_time_it_starts_closed(self, tmp_path):
         (tmp_path / ".pybreeze").mkdir()
         (tmp_path / ".pybreeze" / "ui_state.json").write_text(json.dumps({VISIBLE_STATE: False}), encoding="utf-8")
 
         seen = run_started_window(
             tmp_path, "result = window.navigation_dock.isHidden()", before_window=_HOME_IS_THE_WORKING_FOLDER)
+
+        assert seen is True
+
+
+@in_the_side_bar
+class TestTheNavigationInTheSideBar:
+    def test_a_first_start_shows_it_in_the_side_bar(self, shell):
+        seen = shell
+
+        assert seen["in_the_side_bar"]
+        assert seen["shown_at_start"]
+        assert seen["header"] == "NAVIGATION"
+        assert seen["there_is_no_dock"]
+
+    def test_it_has_an_icon_and_a_view_menu_entry(self, shell):
+        seen = shell
+
+        assert seen["icon_tip"] == "Navigation"
+        assert seen["icon_is_drawn"]
+        assert seen["in_the_view_menu"]
+        # Its own View menu entry is added after the tree is read, so it does not list itself
+        assert not seen["listed_in_itself"]
+
+    def test_another_view_takes_its_place(self, shell):
+        assert shell["hidden_by_the_explorer"]
+
+    @pytest.mark.parametrize(("side_view", "shown"), [(NAVIGATION_VIEW, True), ("explorer", False)])
+    def test_the_view_left_open_last_time_is_the_one_shown(self, tmp_path, side_view, shown):
+        # JEditor restores its layout before PyBreeze's view exists; it is restored again once it does
+        seen = run_started_window(
+            tmp_path, "result = window.workbench.is_view_shown('pybreeze_navigation')",
+            saved_settings={"shell_layout": {"side_view": side_view}})
+
+        assert seen is shown
+
+    def test_a_side_bar_closed_last_time_stays_closed(self, tmp_path):
+        seen = run_started_window(
+            tmp_path, "result = window.workbench.side_bar.isHidden()",
+            saved_settings={"shell_layout": {"side_view": NAVIGATION_VIEW, "side_bar_visible": False}})
 
         assert seen is True

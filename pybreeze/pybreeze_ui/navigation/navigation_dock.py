@@ -1,8 +1,13 @@
 """The navigation panel: PyBreeze's areas as a tree that stays in view and can be searched.
 
-It is a dock at the left of the main window. Typing in its box keeps the lines
-that hold the text, and Enter or a double click on a line does what the menu
-entry it stands for does. What it lists is decided by ``navigation_model``.
+Typing in its box keeps the lines that hold the text, and Enter or a double
+click on a line does what the menu entry it stands for does. What it lists is
+decided by ``navigation_model``.
+
+``NavigationPanel`` is the panel itself. Where JEditor's window has a shell it
+is a view of the side bar, with an icon in the activity bar; ``NavigationDock``
+holds one in a dock at the left of the main window, for a JEditor from before
+its window had a shell.
 """
 from __future__ import annotations
 
@@ -16,26 +21,27 @@ from pybreeze.pybreeze_ui.navigation.navigation_model import CATEGORIES, Navigat
 from pybreeze.utils.logging.logger import pybreeze_logger
 from pybreeze.utils.ui_state import remember
 
-# The name the panel's visibility is remembered under (utils/ui_state.py)
+# The name the dock's visibility is remembered under (utils/ui_state.py)
 VISIBLE_STATE = "navigation_visible"
+# The panel's ID as a view of JEditor's shell, which its saved layout names
+NAVIGATION_VIEW = "pybreeze_navigation"
 # The least width the panel asks for, in ems: room for a tool's name
 _MIN_WIDTH_EMS = 14
 # Where an item keeps the entry it stands for
 _ENTRY_ROLE = Qt.ItemDataRole.UserRole
 
 
-class NavigationDock(QDockWidget):
+class NavigationPanel(QWidget):
     """The navigation tree with its search box.
 
     :param navigation: what each category holds, by the category's key
         (``navigation_model.build_navigation``)
-    :param parent: the main window
+    :param parent: the Qt parent
     """
 
     def __init__(self, navigation: dict[str, list[NavigationEntry]], parent: QWidget | None = None) -> None:
         word = language_wrapper.language_word_dict
-        super().__init__(word.get("navigation_dock_title"), parent)
-        self.setObjectName("pybreeze_navigation")
+        super().__init__(parent)
 
         self.filter_edit = QLineEdit()
         self.filter_edit.setPlaceholderText(word.get("navigation_filter_placeholder"))
@@ -49,14 +55,12 @@ class NavigationDock(QDockWidget):
         self.status = StatusLine()
         self.status.hide()
 
-        body = QWidget()
-        layout = QVBoxLayout(body)
+        layout = QVBoxLayout(self)
         apply_spacing(layout, around=Space.TIGHT)
         layout.addWidget(self.filter_edit)
         layout.addWidget(self.tree)
         layout.addWidget(self.status)
-        body.setMinimumWidth(_MIN_WIDTH_EMS * em(body))
-        self.setWidget(body)
+        self.setMinimumWidth(_MIN_WIDTH_EMS * em(self))
 
         self._fill(navigation)
 
@@ -120,6 +124,30 @@ class NavigationDock(QDockWidget):
         if wanted and any(kept):
             item.setExpanded(True)
         return shown
+
+
+
+class NavigationDock(QDockWidget):
+    """The navigation panel in a dock at the left of the main window.
+
+    :param navigation: what each category holds, by the category's key
+        (``navigation_model.build_navigation``)
+    :param parent: the main window
+    """
+
+    def __init__(self, navigation: dict[str, list[NavigationEntry]], parent: QWidget | None = None) -> None:
+        super().__init__(language_wrapper.language_word_dict.get("navigation_dock_title"), parent)
+        self.setObjectName("pybreeze_navigation")
+        self.panel = NavigationPanel(navigation)
+        # The panel's parts under the names the dock always had them
+        self.filter_edit = self.panel.filter_edit
+        self.tree = self.panel.tree
+        self.status = self.panel.status
+        self.setWidget(self.panel)
+
+    def apply_filter(self, text: str) -> None:
+        """Keep the lines that hold *text* (``NavigationPanel.apply_filter``)."""
+        self.panel.apply_filter(text)
 
     def closeEvent(self, event) -> None:
         # Closed with its own button: stay closed next time. The Dock menu's

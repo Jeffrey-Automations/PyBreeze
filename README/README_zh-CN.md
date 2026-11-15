@@ -75,7 +75,7 @@ PyBreeze 开箱即用，涵盖自动化测试的完整范围：
 
 - **自动化关键字集** — 在 JEditor 的语言支持之上，为 `.json` 注册了 `AT_*` / GUI / Web / Load 关键字集，为 `.yml` 和 `.yaml` 注册了 TestPioneer 的结构定义。JEditor 目前还不会为它们着色：它用自己针对这些扩展名的规则高亮，不会用到注册的关键字
 - **代码编辑器** — 基于 [JEditor](https://github.com/Integration-Automation/JEDITOR) 构建：标签页、项目树、格式检查、调试器、终端以及 git 客户端面板
-- **导航面板** — 左侧的停靠窗格把菜单里的功能列成一棵树（自动化、工具、设置）：在搜索框输入名称即可找到工具或命令，按 Enter 或双击即可打开。Dock 菜单里的 **Navigation** 可以显示或隐藏它，特意关掉的面板下次启动时仍然是关着的
+- **导航面板** — 侧边栏的一个面板，在活动栏有自己的图标，把菜单里的功能列成一棵树（自动化、工具、设置）：在搜索框输入名称即可找到工具或命令，按 Enter 或双击即可打开。第一次启动时显示的就是它；从活动栏或 **视图 ▸ Navigation** 切换到它，退出时打开着哪个面板，下次启动就显示哪个
 - **小屏幕也放得下** — 工具标签页需要的宽度不会超过 60 个字高：一行按钮放不下时会换到下一行，而不是把窗口撑得比屏幕还宽
 - **脚本执行** — 单个或批量运行，每次运行都有自己的窗口和 Stop 按钮（Run ▸ Stop All Program 会全部停止），运行中关闭窗口时会先询问是否停止；动作文件以路径传入，而前台标签页中的脚本若超出 Windows 命令行的长度上限（约 32 KB），会改经临时文件传递
 - **报告生成** — 运行后生成 HTML / JSON / XML 报告，可选以邮件发送
@@ -395,8 +395,8 @@ python exe/start_pybreeze.py      # 从 exe 目录运行
 ```python
 from pybreeze import start_editor
 
-start_editor()                              # 在 UI Style 中选定的主题（尚未选择时为 dark_amber）
-start_editor(theme="dark_teal.xml")         # 任意 qt_material 主题；它会成为选定的主题
+start_editor()                              # 在 UI Style 中选定的主题（尚未选择时为 JEditor Dark）
+start_editor(theme="jeditor_light")         # JEditor 的主题，或任意 qt_material 主题（例如 "dark_teal.xml"）；它会成为选定的主题
 ```
 
 启动后：
@@ -538,4 +538,4 @@ MIT — 详见 [LICENSE](../LICENSE)。Copyright (c) 2022 JE-Chen
 
 ---
 
-<sub>截图均取自 Windows 11 上实际的 PyBreeze 组件，使用默认的 `dark_amber` 主题；各工具中的示例数据都是经真实代码路径处理的真实输入。</sub>
+<sub>截图均取自 Windows 11 上实际的 PyBreeze 组件，使用 `dark_amber` 主题（截图当时的默认主题）；各工具中的示例数据都是经真实代码路径处理的真实输入。</sub>
