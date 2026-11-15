@@ -8,6 +8,10 @@ check once more as they connect, and connect to that address; the name stays
 the connection's host, so TLS still checks the certificate against it (SNI)
 and the ``Host`` header still carries it.
 
+An address the user allowed for a request (``approved_local_addresses``) is
+checked the same way at the connection: only the addresses that were shown and
+allowed pass, so a name cannot move from the allowed one to another private one.
+
 Only direct connections are pinned. Through a proxy it is the proxy that
 resolves and connects, and the connection made here is to the proxy, which may
 well be on the local network.
@@ -22,7 +26,7 @@ import http.client
 import socket
 import threading
 import urllib.request
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from typing import Any
 
 import requests
@@ -36,6 +40,32 @@ from pybreeze.utils.network.url_validation import UnsafeURLError, public_address
 
 # The overall deadline of the request each thread is making, if it set one
 _DEADLINES = threading.local()
+
+# The local addresses the user allowed for the request each thread is making, if any
+_APPROVED = threading.local()
+
+
+def _approved() -> frozenset[str]:
+    """The local addresses allowed for the calling thread's request."""
+    return getattr(_APPROVED, "current", frozenset())
+
+
+@contextlib.contextmanager
+def approved_local_addresses(addresses: Iterable[str]) -> Iterator[None]:
+    """Let the connections this thread makes in the block reach *addresses*, and no other non-public one.
+
+    For an endpoint on this machine or the private network that the user was
+    shown and allowed. The addresses are those of ``LocalAddressNeedsApprovalError``;
+    a connection resolves its host again and is refused when the answer holds a
+    non-public address that is not among them. Kept per thread, as the
+    connections of a request are made on the thread that sends it.
+    """
+    outer = getattr(_APPROVED, "current", frozenset())
+    _APPROVED.current = frozenset(addresses)
+    try:
+        yield
+    finally:
+        _APPROVED.current = outer
 
 
 class _Deadline:
@@ -141,7 +171,7 @@ class _PinnedConnectionMixin(_UnderDeadlineMixin):
     def _new_conn(self) -> socket.socket:
         name = self._dns_host
         try:
-            addresses = public_addresses(name)
+            addresses = public_addresses(name, _approved())
         except UnsafeURLError as error:
             raise NewConnectionError(self, f"Refused: {error}") from None
         failure: Exception | None = None
@@ -218,7 +248,7 @@ def _create_public_connection(address: tuple[str, int], *args: Any, **kwargs: An
     """``socket.create_connection`` to a checked address of *address*'s host, each tried in turn."""
     host, port = address
     try:
-        checked = public_addresses(host)
+        checked = public_addresses(host, _approved())
     except UnsafeURLError as error:
         raise AddressNotPublicError(str(error)) from None
     failure: OSError | None = None

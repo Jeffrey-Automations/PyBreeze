@@ -72,8 +72,13 @@ If it does not work
   says, for each framework, its version or why it gives no keywords.
 - A JSON file that is not an action script is only told whether it is JSON.
 - The interpreter was changed under **Python Env** after PyBreeze started: the
-  Automation Keywords tab follows at once, the editor after a restart.
-- A packaged build (an executable, not ``python -m pybreeze``) has no language server.
+  Automation Keywords tab and the editor both follow at once. The open ``.json`` files
+  are moved to a language server for the new interpreter, so their marks disappear for
+  the second or two it takes to read that interpreter's keywords.
+- A packaged build (an executable, not ``python -m pybreeze``) runs the language server
+  from its own executable. The keywords still come from a Python: a ``venv`` or
+  ``.venv`` in the project folder, the one chosen under **Python Env**, or ``python`` on
+  ``PATH``. With none of these, a ``.json`` file is only told whether it is JSON.
 
 Next
 ----

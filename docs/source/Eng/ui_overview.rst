@@ -3,8 +3,14 @@ UI Overview
 
 .. image:: images/ui.png
 
-PyBreeze provides a tabbed, dock-based interface built on PySide6 (Qt for Python) and
-the JEditor editor engine. The main window is composed of several key areas.
+PyBreeze's window is JEditor's: an activity bar at the left edge, a side bar beside it,
+the editor tabs in the middle, a panel below them and a secondary side bar at the right,
+built on PySide6 (Qt for Python). The picture shows it in the default theme, JEditor Dark,
+with the Navigation view in the side bar.
+
+.. image:: images/ui_light.png
+
+The same window in JEditor Light, with the Explorer in the side bar.
 
 Main Window Layout
 ------------------
@@ -35,34 +41,36 @@ The menu bar holds these top-level menus, from left to right:
   editor, automation keywords, MCP client and report viewer (see :doc:`menu_tools`)
 - **Plugins** -- the Plugin Browser and the loaded plugins (see :doc:`menu_plugins`)
 
+Activity Bar and Side Bar
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The icons at the left edge switch the side bar between its views: **Explorer** (the file
+tree), **Outline**, **Run and Debug**, **Testing**, **TODO** and PyBreeze's **Navigation**.
+Clicking the icon of the view that is shown hides the side bar; **View > Toggle Side Bar**
+does the same. The view left open, and whether the side bar is open at all, is remembered
+with the project.
+
 Navigation Panel
 ^^^^^^^^^^^^^^^^
 
-A dock at the left lists what the menus hold, in five categories: **Automation**,
-**Tools**, **MCP**, **Reports** and **Settings**. Typing in its box keeps the lines that
-hold the text; Enter or a double click on a line does what the menu entry does.
-**Dock > Navigation** shows and hides it, and whether it is shown is remembered.
+A view of the side bar, with the compass icon in the activity bar, lists what the menus
+hold in five categories: **Automation**, **Tools**, **MCP**, **Reports** and **Settings**.
+Typing in its box keeps the lines that hold the text; Enter or a double click on a line
+does what the menu entry does. It is the view shown on a first start, and
+**View > Navigation** switches to it.
 
 File Tree
 ^^^^^^^^^
 
-Located on the left side of the window. Provides a file browser for navigating your project
-directory. You can:
+The **Explorer** view of the side bar: one tree for the whole window, whichever tab is in
+front. You can:
 
 - Browse files and folders
-- Click a file to open it in the editor tab in front, in place of what that tab shows
-  (unsaved text there is lost without a question, see the note below); a file already
-  open in a tab switches to that tab instead
+- Click a file to open it in a tab of its own; a blank, untouched tab is used instead of
+  opening another, and a file already open in a tab switches to that tab
 - Right-click any file or folder to access the context menu (see below)
 - Press **F2** to rename, or **Delete** to delete, the item in focus while the tree has
   the focus
-
-.. note::
-
-   With JEditor 1.0.27, opening a file into a tab -- a click in the tree, or **File > Open
-   File** -- does not ask about the text that tab holds. A tab with a file saves it every
-   few seconds, but a new tab's text, or the last seconds of typing, is gone. Open a new
-   tab first (**Tab > Add Editor Tab**) to keep it.
 
 File Tree Context Menu
 """"""""""""""""""""""
@@ -115,16 +123,22 @@ Features:
 - A tool tab with unsaved work (a prompt editor, the diagram editor) asks before it
   closes, and so does closing the IDE
 
-Output Panel
+Bottom Panel
 ^^^^^^^^^^^^
 
-Each editor tab has a panel below it with the tabs **Code result**, **Format checker**,
-**Debugger**, **Terminal**, **Variable Inspector** and **Git Client**:
+The panel below the editor tabs belongs to the window, not to a tab, and holds **Output**,
+**Problems**, **Terminal**, **Source Control**, **Debug Console**, **Format Check** and
+**Variables**:
 
-- **Code result** shows the output of **Run Program** and **Run On Shell**, errors in the
+- **Output** shows the output of **Run Program** and **Run On Shell**, errors in the
   theme's error colour, and the IDE's log messages (warnings and errors only);
-- **Format checker** lists what **Check Code Style > Python format check** found;
-- **Debugger** is where **Run Debugger** runs.
+- **Problems** lists what ``ruff`` and the language servers found;
+- **Source Control** is the Git client;
+- **Format Check** lists what **Check Code Style > Python format check** found;
+- **Debug Console** is where the debugger writes.
+
+**View > Toggle Panel** shows and hides it, as does the button at its right end. The AI
+chat opens in the secondary side bar at the right (**View > Toggle Secondary Side Bar**).
 
 Run Window
 ^^^^^^^^^^
@@ -146,8 +160,8 @@ Dock Widgets
 Panels can be opened as **dock widgets** instead of tabs from the **Dock** menu, and
 arranged freely around the main window:
 
-- **Editor** -- a docked editor, IPython (Jupyter) and the variable inspector (empty for now,
-  see :doc:`menu_file_run_text`)
+- **Editor** -- a docked editor, IPython (Jupyter) and the variable inspector (see
+  :doc:`menu_file_run_text`)
 - **Git** -- the Git client, branch tree viewer and code diff viewer
 - **AI** -- Chat UI, AI Code Review, CoT Prompt Editor, CoT Code Review, Skill Prompt
   Editor and Skill Send
@@ -162,10 +176,12 @@ main window.
 Theme System
 ------------
 
-PyBreeze uses `qt_material <https://github.com/UN-GCPDS/qt-material>`_ for theming.
-The **UI Style** menu lists these themes:
+The **UI Style** menu lists JEditor's two themes first, then those of
+`qt_material <https://github.com/UN-GCPDS/qt-material>`_:
 
-- ``dark_amber.xml`` (default)
+- ``jeditor_dark`` -- **JEditor Dark** (default)
+- ``jeditor_light`` -- **JEditor Light**
+- ``dark_amber.xml``
 - ``dark_blue.xml``
 - ``dark_cyan.xml``
 - ``dark_lightgreen.xml``
@@ -189,7 +205,7 @@ time:
 
    from pybreeze import start_editor
 
-   start_editor(theme="dark_teal.xml")
+   start_editor(theme="jeditor_light")
 
 The theme picked from **UI Style** is saved and used at the next start. A theme given to
 ``start_editor`` replaces it, and is saved in its place.

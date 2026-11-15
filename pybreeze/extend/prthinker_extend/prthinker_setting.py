@@ -73,9 +73,9 @@ MODEL_ENVIRONMENT = {
     "codex-cli": "PRTHINKER_CODEX_CLI_MODEL",
 }
 
-# 設定表沒有金鑰欄位的後端：prthinker 從啟動 IDE 的環境裡的這個變數讀金鑰
-# The backends with no key field on the settings form: prthinker reads their key
-# from this variable, in the environment the IDE was started in
+# 這些後端的金鑰欄位留空時，prthinker 會從啟動 IDE 的環境裡的這個變數讀金鑰
+# The backends whose key, when its field is left empty, prthinker reads from this
+# variable in the environment the IDE was started in
 KEY_FROM_ENVIRONMENT = {
     "gemini": "PRTHINKER_GEMINI_API_KEY",
     "cohere": "PRTHINKER_COHERE_API_KEY",
@@ -92,6 +92,9 @@ SETTING_ENVIRONMENT = {
     "openai_api_key": "PRTHINKER_OPENAI_API_KEY",
     "openai_base_url": "PRTHINKER_OPENAI_BASE_URL",
     "anthropic_api_key": "PRTHINKER_ANTHROPIC_API_KEY",
+    "gemini_api_key": KEY_FROM_ENVIRONMENT["gemini"],
+    "cohere_api_key": KEY_FROM_ENVIRONMENT["cohere"],
+    "mistral_api_key": KEY_FROM_ENVIRONMENT["mistral"],
     "platform": "PRTHINKER_PLATFORM",
     "platform_base_url": "PRTHINKER_PLATFORM_BASE_URL",
     "repository": "GITHUB_REPOSITORY",
@@ -100,7 +103,8 @@ SETTING_ENVIRONMENT = {
 
 # 不能寫進紀錄的設定項 / The settings that must never reach a log
 SECRET_SETTINGS = (
-    "remote_api_key", "openai_api_key", "anthropic_api_key", "platform_token")
+    "remote_api_key", "openai_api_key", "anthropic_api_key", "gemini_api_key",
+    "cohere_api_key", "mistral_api_key", "platform_token")
 
 # 預設設定 / The settings as they start out
 DEFAULT_SETTING: dict[str, str] = {
@@ -111,6 +115,9 @@ DEFAULT_SETTING: dict[str, str] = {
     "openai_api_key": "",
     "openai_base_url": "",
     "anthropic_api_key": "",
+    "gemini_api_key": "",
+    "cohere_api_key": "",
+    "mistral_api_key": "",
     "platform": "github",
     "platform_base_url": "",
     "repository": "",

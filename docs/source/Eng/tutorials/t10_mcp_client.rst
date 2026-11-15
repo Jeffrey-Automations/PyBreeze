@@ -102,6 +102,9 @@ If it does not work
 - *The MCP server closed the connection*: the program started and ended. The status
   line ends with its last log line; for the example, a wrong path to
   ``mcp_time_server.py`` in **Command** or **Start in**.
+- The server gained a tool and the tab does not show it: a server that announces the
+  change (``list_changed``) is read again by itself; for one that does not, **Disconnect**
+  and **Connect**.
 - A call does not come back: press **Cancel**. A server is given the seconds set in
   its profile (30 by default) before the call is given up on.
 - Servers reached over HTTP are not supported: only servers started as a local program.

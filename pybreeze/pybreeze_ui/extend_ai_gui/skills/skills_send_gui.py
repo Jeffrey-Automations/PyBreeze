@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import QThread, Signal
 from je_editor import language_wrapper
 
+from pybreeze.pybreeze_ui.local_endpoint import LocalEndpointGate, has_ended
 from pybreeze.pybreeze_ui.run_shortcut import press_on_ctrl_enter
 from pybreeze.pybreeze_ui.extend_ai_gui.ai_gui_global_variable import (
     SKILLS_TEMPLATE_FILES, SKILLS_TEMPLATE_RELATION
@@ -30,8 +31,8 @@ from pybreeze.utils.network.http_client import (
     describe_request_error, succeeded,
     truncate_for_display,
 )
-from pybreeze.utils.network.public_http import overall_deadline, public_session
-from pybreeze.utils.network.url_validation import UnsafeURLError, validate_url
+from pybreeze.utils.network.public_http import approved_local_addresses, overall_deadline, public_session
+from pybreeze.utils.network.url_validation import LocalAddressNeedsApprovalError, UnsafeURLError, validate_url
 from pybreeze.pybreeze_ui.plain_text import as_text
 from pybreeze.pybreeze_ui.exact_text import exact_text
 
@@ -45,17 +46,31 @@ class RequestThread(QThread):
     # left nothing to re-enable the send button when run() ended some other way.
     answered = Signal(str)   # 成功或錯誤訊息 / the answer, or a status to show
     error = Signal(str)
+    # (host, addresses): refused, and the user may allow it; ``error`` follows
+    local_endpoint = Signal(str, list)
 
-    def __init__(self, api_url, code_text):
+    def __init__(self, api_url, code_text, allowed_local: frozenset[str] = frozenset()):
         super().__init__()
+        self.setObjectName("SkillRequestThread")
         self.api_url = api_url
         self.code_text = code_text
+        # The addresses on this machine or the private network the user allowed for this host
+        self.allowed_local = allowed_local
+
+    def _check_url(self) -> None:
+        """Validate the URL; a refusal the user may lift is announced before it is raised."""
+        try:
+            validate_url(self.api_url, self.allowed_local)
+        except LocalAddressNeedsApprovalError as refused:
+            self.local_endpoint.emit(refused.host, list(refused.addresses))
+            raise
 
     def run(self):
         try:
-            validate_url(self.api_url)
+            self._check_url()
             # The whole request, headers included: a read timeout restarts with every byte
-            with overall_deadline(DEFAULT_MAX_READ_SECONDS), public_session() as session:
+            with approved_local_addresses(self.allowed_local), \
+                    overall_deadline(DEFAULT_MAX_READ_SECONDS), public_session() as session:
                 response = session.post(
                     self.api_url, json={"code": self.code_text},
                     timeout=(CONNECT_TIMEOUT, 30), allow_redirects=False, stream=True,
@@ -149,6 +164,8 @@ class SkillsSendGUI(QWidget):
         self.setLayout(layout)
 
         self.request_thread = None  # 保存執行緒
+        # What the user allowed this panel to reach on this machine or the private network
+        self.local_gate = LocalEndpointGate(self)
         # 編輯區裡是哪個模板：換模板被拒時選單要回到這裡
         # The template in the edit area: where the selector goes back to when a switch is refused
         self._shown_template = self.prompt_select.currentText()
@@ -218,9 +235,10 @@ class SkillsSendGUI(QWidget):
 
         # 啟動 QThread
         self.send_button.setEnabled(False)
-        self.request_thread = RequestThread(api_url, prompt_text)
+        self.request_thread = RequestThread(api_url, prompt_text, self.local_gate.allowed_for(api_url))
         self.request_thread.answered.connect(self.on_finished)
         self.request_thread.error.connect(self.on_error)
+        self.request_thread.local_endpoint.connect(self.local_gate.note)
         # However run() ends -- including an exception outside its handler --
         # the button comes back.
         self.request_thread.finished.connect(self._enable_send)
@@ -232,8 +250,13 @@ class SkillsSendGUI(QWidget):
         A bound method, not a lambda: the thread's connection holding a lambda
         that held the panel kept both alive after the panel was closed and
         deleted, a cycle through Qt that Python's collector cannot see.
+
+        A request refused for a local address is asked about here, with the
+        thread over, and sent again on a yes.
         """
         self.send_button.setEnabled(True)
+        if self.local_gate.confirm_pending() and has_ended(self.request_thread):
+            self.send_prompt()
 
     def on_finished(self, result):
         self.response_output.setPlainText(result)
@@ -253,5 +276,5 @@ class SkillsSendGUI(QWidget):
         """
         thread = self.request_thread
         if thread is not None and thread.isRunning():
-            let_run_out(thread, thread.answered, thread.error)
+            let_run_out(thread, thread.answered, thread.error, thread.local_endpoint)
         event.accept()

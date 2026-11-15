@@ -413,3 +413,33 @@ def test_a_transport_that_was_never_started_closes_and_refuses_quietly():
     assert transport.log_tail() == []
     with pytest.raises(McpClosed):
         transport.send({})
+
+
+@pytest.mark.parametrize(("method", "changed"), [
+    ("notifications/tools/list_changed", "tools"),
+    ("notifications/resources/list_changed", "resources"),
+    ("notifications/prompts/list_changed", "prompts"),
+    ("notifications/message", None),
+    ("notifications/resources/updated", None),
+    ("tools/list_changed", None),
+])
+def test_a_notification_names_the_list_that_changed(method, changed):
+    from pybreeze.utils.mcp.mcp_client import changed_list
+
+    assert changed_list(method) == changed
+
+
+def test_a_server_that_changes_its_tools_says_so_and_lists_the_new_one():
+    heard: list[str] = []
+    listening = McpClient(_profile("fake", "--changing"))
+    listening.on_notification = lambda method, _params: heard.append(method)
+    try:
+        listening.connect()
+        listening.call_tool("change", {"add": "later_tool"})
+
+        assert [method for method in heard if method.endswith("list_changed")] == [
+            "notifications/tools/list_changed", "notifications/resources/list_changed",
+            "notifications/prompts/list_changed"]
+        assert "later_tool" in [tool.name for tool in listening.list_tools()]
+    finally:
+        listening.close()

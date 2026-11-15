@@ -1,6 +1,6 @@
 """The theme ``start_editor(theme=...)`` is given is the one the IDE shows.
 
-JEditor's ``startup_setting()`` applies the saved theme (``dark_amber.xml`` until
+JEditor's ``startup_setting()`` applies the saved theme (JEditor's default until
 one is picked from UI Style) after the window is shown, over the one
 ``start_editor`` had applied, so the argument never showed at all.
 """
@@ -40,7 +40,18 @@ def test_without_one_the_theme_picked_before_is_shown(tmp_path):
 
 
 def test_without_either_the_default_is_shown(tmp_path):
-    assert _start(tmp_path)["shown"] == "dark_amber.xml"
+    seen = _start(tmp_path)
+
+    # JEditor's default is its own dark theme, which qt_material is never asked for
+    assert (seen["shown"], seen["saved"]) == (None, "jeditor_dark")
+
+
+def test_a_jeditor_theme_given_at_launch_is_shown_without_qt_material(tmp_path):
+    seen = _start(tmp_path, theme="jeditor_light", saved="dark_teal.xml")
+
+    # dark_teal was applied as the window was built; the theme given replaced it
+    assert seen["saved"] == "jeditor_light"
+    assert seen["shown"] == "dark_teal.xml"
 
 
 _COUNT_THEMES = """
@@ -93,22 +104,24 @@ def test_the_window_looks_the_same_with_the_theme_given_or_saved(tmp_path):
 
 def test_settings_that_fail_to_apply_still_leave_the_theme_given(monkeypatch):
     # The saved settings (and the files they reopen) can be anything: a bad
-    # one used to stop the start before the theme was applied
+    # one used to stop the start before the theme was applied. The window
+    # applies the theme itself, JEditor's own or qt_material's alike
     from pybreeze.pybreeze_ui.editor_main import main_ui
 
-    applied: list = []
+    by_the_window: list = []
     logged: list = []
     monkeypatch.setitem(main_ui.user_setting_dict, "ui_style", "dark_amber.xml")
-    monkeypatch.setattr(main_ui, "apply_stylesheet", lambda app, theme: applied.append((app, theme)))
     monkeypatch.setattr(main_ui.pybreeze_logger, "error", lambda *args: logged.append(args))
 
     class Window:
         def startup_setting(self) -> None:
             raise KeyError("font_size")
 
-    app = object()
-    main_ui._apply_given_theme(app, Window(), "dark_teal.xml")
+        def apply_style(self, theme: str) -> None:
+            by_the_window.append(theme)
 
-    assert main_ui.user_setting_dict["ui_style"] == "dark_teal.xml"
-    assert applied == [(app, "dark_teal.xml")]
+    main_ui._apply_given_theme(Window(), "jeditor_light")
+
+    assert main_ui.user_setting_dict["ui_style"] == "jeditor_light"
+    assert by_the_window == ["jeditor_light"]
     assert logged

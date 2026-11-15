@@ -89,6 +89,8 @@ class McpToolsPanel(QWidget):
         self.call_button = QPushButton(_word("mcp_tools_call_button"))
         self.cancel_button = QPushButton(_word("mcp_tools_cancel_button"))
         self.result_view = _read_only_view()
+        # The tool the arguments box was started for: shown again, what is typed for it stays
+        self._arguments_for: str | None = None
 
         left = QWidget()
         left_layout = QVBoxLayout(left)
@@ -114,12 +116,34 @@ class McpToolsPanel(QWidget):
 
     def show_tools(self, tools: list[McpTool]) -> None:
         """List *tools*; none (a server that is gone) empties the page."""
-        self.tool_list.clear()
         self.result_view.clear()
-        for tool in tools:
-            item = QListWidgetItem(tool.name)
-            item.setData(_PAYLOAD_ROLE, tool)
-            self.tool_list.addItem(item)
+        self._arguments_for = None
+        self._list(tools, None)
+
+    def refresh_tools(self, tools: list[McpTool]) -> None:
+        """List *tools* again, for a server whose list changed while the page was in use.
+
+        The selected tool stays selected when it is still offered, and what is
+        typed for it and the last result stay as they are; what the server says
+        of it is shown anew. A selected tool that is gone gives way to the first.
+        """
+        selected = self.selected_tool()
+        self._list(tools, selected.name if selected is not None else None)
+
+    def _list(self, tools: list[McpTool], keep: str | None) -> None:
+        """Fill the list with *tools*, selecting the one named *keep* when it is among them."""
+        # Silently: each change of the selection would start the arguments box again
+        self.tool_list.blockSignals(True)
+        try:
+            self.tool_list.clear()
+            for tool in tools:
+                item = QListWidgetItem(tool.name)
+                item.setData(_PAYLOAD_ROLE, tool)
+                self.tool_list.addItem(item)
+                if keep is not None and tool.name == keep:
+                    self.tool_list.setCurrentItem(item)
+        finally:
+            self.tool_list.blockSignals(False)
         self._apply_filter()
         self.set_busy(False)
 
@@ -151,17 +175,25 @@ class McpToolsPanel(QWidget):
         return _word("mcp_tools_hint_read_only" if tool.read_only else "mcp_tools_hint_unknown")
 
     def _show_tool(self, *_items) -> None:
-        """Show what the server says of the selected tool, and start its arguments with the ones it requires."""
+        """Show what the server says of the selected tool, and start its arguments with the ones it requires.
+
+        The arguments are started once for a tool: shown again (the filter
+        typed in, the list read again), what is typed for it is left alone.
+        """
         tool = self.selected_tool()
         if tool is None:
             self.detail_view.clear()
             self.arguments_edit.clear()
+            self._arguments_for = None
             self.set_busy(False)
             return
         parts = [tool.title or tool.name, tool.description, self.hint_of(tool),
                  dumps_for_view(tool.input_schema, indent=2)]
         self.detail_view.setPlainText("\n\n".join(part for part in parts if part))
-        self.arguments_edit.setPlainText(dumps_for_view({name: "" for name in tool.required_arguments()}, indent=2))
+        if tool.name != self._arguments_for:
+            self.arguments_edit.setPlainText(
+                dumps_for_view({name: "" for name in tool.required_arguments()}, indent=2))
+            self._arguments_for = tool.name
         self.set_busy(False)
 
     def arguments(self) -> dict | None:
@@ -194,6 +226,8 @@ class McpItemsPanel(QWidget):
         use_fixed_pitch_font(self.arguments_edit)
         self.action_button = QPushButton(_word(action_key))
         self.content_view = _read_only_view()
+        # The item the arguments box was started for: shown again, what is typed for it stays
+        self._arguments_for: str | None = None
 
         right = QWidget()
         right_layout = QVBoxLayout(right)
@@ -217,25 +251,50 @@ class McpItemsPanel(QWidget):
 
     def show_items(self, items: list[tuple[str, str, object, dict]]) -> None:
         """List *items*: each a label, what the server says of it, what it stands for, and the arguments it starts with."""
-        self.item_list.clear()
         self.content_view.clear()
-        for label, description, payload, arguments in items:
-            item = QListWidgetItem(label)
-            item.setData(_PAYLOAD_ROLE, (description, payload, arguments))
-            self.item_list.addItem(item)
-        if self.item_list.count():
-            self.item_list.setCurrentRow(0)
+        self._arguments_for = None
+        self._list(items, None)
+
+    def refresh_items(self, items: list[tuple[str, str, object, dict]]) -> None:
+        """List *items* again, for a server whose list changed while the page was in use.
+
+        The selected item stays selected when it is still offered, and what is
+        typed for it and what was last fetched stay as they are.
+        """
+        current = self.item_list.currentItem()
+        self._list(items, current.text() if current is not None else None)
+
+    def _list(self, items: list[tuple[str, str, object, dict]], keep: str | None) -> None:
+        """Fill the list with *items*, selecting the one labelled *keep* when it is among them, else the first."""
+        # Silently: each change of the selection would start the arguments box again
+        self.item_list.blockSignals(True)
+        try:
+            self.item_list.clear()
+            for label, description, payload, arguments in items:
+                item = QListWidgetItem(label)
+                item.setData(_PAYLOAD_ROLE, (description, payload, arguments))
+                self.item_list.addItem(item)
+                if keep is not None and label == keep and self.item_list.currentItem() is None:
+                    self.item_list.setCurrentItem(item)
+            if self.item_list.currentItem() is None and self.item_list.count():
+                self.item_list.setCurrentRow(0)
+        finally:
+            self.item_list.blockSignals(False)
         self._show_item()
 
     def _show_item(self, *_items) -> None:
+        """Show what the server says of the selected item; its arguments are started once, then left to the user."""
         item = self.item_list.currentItem()
         if item is None:
             self.detail_view.clear()
             self.arguments_edit.clear()
+            self._arguments_for = None
         else:
             description, _payload, arguments = item.data(_PAYLOAD_ROLE)
             self.detail_view.setPlainText(description)
-            self.arguments_edit.setPlainText(dumps_for_view(arguments, indent=2) if arguments else "")
+            if item.text() != self._arguments_for:
+                self.arguments_edit.setPlainText(dumps_for_view(arguments, indent=2) if arguments else "")
+                self._arguments_for = item.text()
         self.set_busy(False)
 
     def selected(self) -> object | None:

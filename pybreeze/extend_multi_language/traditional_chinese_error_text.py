@@ -93,6 +93,7 @@ TRADITIONAL_CHINESE_ERROR_TEXT: dict[str, str] = {
     "error_text_language_probe_not_installed_error": "執行腳本的直譯器沒有安裝 {framework}",
     "error_text_language_probe_timeout_error": "{framework} 列出關鍵字花了超過 {seconds} 秒",
     "error_text_language_probe_failed_error": "{framework} 無法列出關鍵字（{reason}）",
+    "error_text_language_probe_no_interpreter_error": "找不到可以向 {framework} 詢問關鍵字的 Python",
     "error_text_language_metadata_shape_error":
         "{framework} 對自己關鍵字的描述，不是這一版 PyBreeze 讀得懂的形式",
     "error_text_mcp_profile_command_error": "MCP 伺服器 {name} 沒有可以啟動它的指令",

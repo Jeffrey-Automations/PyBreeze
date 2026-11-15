@@ -4,6 +4,7 @@ from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEd
     QMessageBox
 from je_editor import language_wrapper
 
+from pybreeze.pybreeze_ui.local_endpoint import LocalEndpointGate, has_ended
 from pybreeze.pybreeze_ui.run_shortcut import press_on_ctrl_enter
 from pybreeze.pybreeze_ui.extend_ai_gui.ai_gui_global_variable import COT_TEMPLATE_FILES
 from pybreeze.pybreeze_ui.extend_ai_gui.code_review.code_review_thread import SenderThread
@@ -73,6 +74,8 @@ class CoTCodeReviewGUI(QWidget):
         # 儲存回覆
         self.responses = {}
         self.request_thread = None
+        # What the user allowed this panel to reach on this machine or the private network
+        self.local_gate = LocalEndpointGate(self)
 
     def show_response(self, filename):
         if filename in self.responses:
@@ -107,8 +110,10 @@ class CoTCodeReviewGUI(QWidget):
 
         # 啟動傳送 Thread
         self.send_button.setEnabled(False)
-        self.request_thread = SenderThread(files=self.files, code=code, url=url)
+        self.request_thread = SenderThread(
+            files=self.files, code=code, url=url, allowed_local=self.local_gate.allowed_for(url))
         self.request_thread.update_response.connect(self.handle_response)
+        self.request_thread.local_endpoint.connect(self.local_gate.note)
         self.request_thread.finished.connect(self._enable_send)
         self.request_thread.start()
 
@@ -118,8 +123,13 @@ class CoTCodeReviewGUI(QWidget):
         A bound method, not a lambda: the thread's connection holding a lambda
         that held the panel kept both alive after the panel was closed and
         deleted, a cycle through Qt that Python's collector cannot see.
+
+        A run refused for a local address is asked about here, with the thread
+        over, and started again on a yes.
         """
         self.send_button.setEnabled(True)
+        if self.local_gate.confirm_pending() and has_ended(self.request_thread):
+            self.start_sending()
 
     def handle_response(self, filename, response):
         self.responses[filename] = response
@@ -139,5 +149,5 @@ class CoTCodeReviewGUI(QWidget):
         thread = self.request_thread
         if thread is not None and thread.isRunning():
             thread.requestInterruption()
-            let_run_out(thread, thread.update_response)
+            let_run_out(thread, thread.update_response, thread.local_endpoint)
         event.accept()

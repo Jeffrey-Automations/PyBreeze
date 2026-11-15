@@ -29,9 +29,14 @@ greyed out until it ends.
 
 .. note::
 
-   The endpoint URL must be a public ``http`` / ``https`` address. It is checked before
-   anything is sent, and the connection goes only to the address checked: an endpoint on
-   this machine or on a private network, such as a local model server, is refused.
+   The endpoint URL must be an ``http`` / ``https`` address. It is checked before
+   anything is sent, and the connection goes only to the address checked. An endpoint on
+   this machine or on a private network, such as a local model server (Ollama, LM Studio),
+   is asked about first: the question names the host and the addresses it resolves to,
+   **No** is the default, and on a **Yes** the request goes to exactly those addresses.
+   The answer holds for that host until the panel is closed and is never saved. Link-local
+   addresses (the cloud metadata service among them) and every other non-public address
+   are still refused.
    Redirects are not followed, the answer is capped at 16 MB, and a request that runs
    past five minutes is stopped. Only AI Code Review records the URLs it used, and only as
    fingerprints (see below), since an API URL can carry a token.

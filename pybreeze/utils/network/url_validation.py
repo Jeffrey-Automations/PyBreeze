@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ipaddress
 import socket
+from collections.abc import Iterable
 from urllib.parse import urlparse
 
 from urllib3.exceptions import LocationParseError
@@ -32,6 +33,20 @@ _NAT64_NETWORK = ipaddress.ip_network("64:ff9b::/96")
 
 class UnsafeURLError(Exception):
     """Raised when a URL fails security validation."""
+
+
+class LocalAddressNeedsApprovalError(UnsafeURLError):
+    """A host on this machine or the private network, which the user has not allowed.
+
+    Still a refusal: a caller that does not ask the user treats it as any other
+    ``UnsafeURLError``. One that does ask shows ``host`` and ``addresses``, and
+    on a yes passes exactly those addresses back as ``allowed_local``.
+    """
+
+    def __init__(self, host: str, addresses: tuple[str, ...]) -> None:
+        super().__init__(address_not_public_error.format(address=", ".join(addresses)))
+        self.host = host
+        self.addresses = addresses
 
 
 def _embedded_ipv4(ip: ipaddress.IPv6Address) -> list[ipaddress.IPv4Address]:
@@ -72,6 +87,36 @@ def _is_blocked_ip(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
     if ip.is_site_local:
         return True
     return any(_is_blocked_ip(embedded) for embedded in _embedded_ipv4(ip))
+
+
+def _may_be_approved(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    """Whether the user may allow *ip*: loopback, or a private network's address, and nothing else.
+
+    Not link-local (the cloud metadata service lives there), not Carrier-Grade
+    NAT, not multicast, unspecified or reserved, and not an IPv6 form that
+    tunnels to an IPv4 address: what such a form reaches depends on the network
+    it crosses, so the address shown to the user would not be the one reached.
+    """
+    if isinstance(ip, ipaddress.IPv6Address) and _embedded_ipv4(ip):
+        return False
+    if ip.is_loopback:
+        return True
+    if ip.is_link_local or ip.is_multicast or ip.is_unspecified or ip.is_reserved:
+        return False
+    if isinstance(ip, ipaddress.IPv4Address):
+        return ip.is_private and ip not in _CGNAT_NETWORK
+    return ip.is_private and not ip.is_site_local
+
+
+def _same_addresses(addresses: Iterable[str]) -> frozenset[str]:
+    """*addresses* as ``ipaddress`` writes them, so ``::1`` and ``0:0:0:0:0:0:0:1`` are one; what is no address is dropped."""
+    written = set()
+    for address in addresses:
+        try:
+            written.add(str(ipaddress.ip_address(address)))
+        except ValueError:
+            continue
+    return frozenset(written)
 
 
 def _check_one_reading(url: str) -> None:
@@ -119,7 +164,7 @@ def _as_ascii(host: str) -> str:
         return host
 
 
-def validate_url(url: str) -> str:
+def validate_url(url: str, allowed_local: Iterable[str] = ()) -> str:
     """Validate a user-supplied URL against SSRF rules.
 
     Checks:
@@ -134,7 +179,11 @@ def validate_url(url: str) -> str:
     The host checked must be the host connected to, so a URL the parsers can
     read two ways is refused before anything else: see ``_check_one_reading``.
 
-    Returns the original *url* on success; raises ``UnsafeURLError`` on failure.
+    *allowed_local* is the addresses the user has allowed for this request
+    (see ``public_addresses``); without any, nothing but a public address passes.
+
+    Returns the original *url* on success; raises ``UnsafeURLError`` on failure,
+    ``LocalAddressNeedsApprovalError`` when the user could allow what was refused.
     """
     _check_one_reading(url)
     parsed = urlparse(url)
@@ -147,7 +196,7 @@ def validate_url(url: str) -> str:
         raise UnsafeURLError(url_no_hostname_error)
 
     # The name urllib3 will look up, not Python's reading of a Unicode one
-    public_address(_as_ascii(hostname))
+    public_addresses(_as_ascii(hostname), allowed_local)
     return url
 
 
@@ -156,8 +205,15 @@ def public_address(hostname: str) -> str:
     return public_addresses(hostname)[0]
 
 
-def public_addresses(hostname: str) -> list[str]:
+def public_addresses(hostname: str, allowed_local: Iterable[str] = ()) -> list[str]:
     """Resolve *hostname* and return the addresses to connect to, if every address it has is public.
+
+    An address in *allowed_local* passes as well: the user was shown it and
+    said yes. Every other non-public address is still refused, so a name that
+    answered ``127.0.0.1`` when the user was asked and ``10.0.0.5`` when the
+    connection is made is refused at the connection. When each address refused
+    is one the user may allow (loopback or a private network's), the refusal is
+    a ``LocalAddressNeedsApprovalError`` naming them.
 
     In the order the resolver gave them, each once. A connection tries them in
     turn, as a plain one would: dialling only the first, a host with a broken
@@ -182,11 +238,19 @@ def public_addresses(hostname: str) -> list[str]:
     if not infos:
         raise UnsafeURLError(hostname_without_address_error.format(hostname=hostname))
 
+    allowed = _same_addresses(allowed_local)
     addresses: list[str] = []
+    refused: list[str] = []
     for *_unused, sockaddr in infos:
         ip = ipaddress.ip_address(sockaddr[0])
-        if _is_blocked_ip(ip):
+        # Before the allowed list is looked at: being on it cannot make an
+        # address one that may be allowed (the metadata service, say)
+        if _is_blocked_ip(ip) and not _may_be_approved(ip):
             raise UnsafeURLError(address_not_public_error.format(address=ip))
+        if _is_blocked_ip(ip) and str(ip) not in allowed and str(ip) not in refused:
+            refused.append(str(ip))
         if sockaddr[0] not in addresses:
             addresses.append(sockaddr[0])
+    if refused:
+        raise LocalAddressNeedsApprovalError(hostname, tuple(refused))
     return addresses

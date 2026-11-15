@@ -53,6 +53,8 @@ ENGLISH_INTEGRATION_WORDS: dict[str, str] = {
     "mcp_client_connecting": "Connecting to {name}...",
     "mcp_client_connected": "Connected to {server}: {tools} tools, {resources} resources, {prompts} prompts",
     "mcp_client_disconnected": "Disconnected from {name}",
+    "mcp_client_refreshing": "{name} changed what it offers. Reading it again...",
+    "mcp_client_refreshed": "{server} now offers {tools} tools, {resources} resources, {prompts} prompts",
     "mcp_client_failed_with_log": "{reason}. The server's log ends: {line}",
     "mcp_client_arguments_not_object": "The arguments have to be a JSON object: names and their values, in braces",
     "mcp_client_calling": "Calling {tool}...",

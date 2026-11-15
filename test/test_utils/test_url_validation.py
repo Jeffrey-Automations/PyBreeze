@@ -135,3 +135,126 @@ class TestTheIPv4InsideAnIPv6Wrapper:
         from pybreeze.utils.network.url_validation import _embedded_ipv4
 
         assert _embedded_ipv4(ipaddress.ip_address("2606:4700:4700::1111")) == []
+
+
+class TestLocalAddressesTheUserMayAllow:
+    """A local model server: refused, unless the user was shown its address and said yes."""
+
+    @staticmethod
+    def _resolving(monkeypatch, *addresses):
+        import socket
+
+        from pybreeze.utils.network import url_validation
+
+        answer = [
+            (socket.AF_INET6 if ":" in address else socket.AF_INET, socket.SOCK_STREAM, 6, "", (address, 0))
+            for address in addresses]
+        monkeypatch.setattr(url_validation.socket, "getaddrinfo", lambda *_a, **_k: answer)
+
+    @pytest.mark.parametrize("address", ["127.0.0.1", "::1", "10.0.0.5", "172.16.3.3", "192.168.1.9", "fd00::1"])
+    def test_a_loopback_or_private_address_is_refused_as_one_that_may_be_allowed(self, monkeypatch, address):
+        from pybreeze.utils.network.url_validation import LocalAddressNeedsApprovalError
+
+        self._resolving(monkeypatch, address)
+
+        with pytest.raises(LocalAddressNeedsApprovalError) as refused:
+            validate_url("http://model.test:11434/api")
+
+        assert refused.value.host == "model.test"
+        assert refused.value.addresses == (address,)
+
+    def test_it_is_still_the_refusal_every_other_caller_expects(self, monkeypatch):
+        self._resolving(monkeypatch, "127.0.0.1")
+
+        with pytest.raises(UnsafeURLError, match="127.0.0.1"):
+            validate_url("http://model.test/")
+
+    @pytest.mark.parametrize("address", [
+        "169.254.169.254", "100.64.0.1", "0.0.0.0", "224.0.0.1", "240.0.0.1", "255.255.255.255",
+        "::", "fe80::1", "fec0::1", "ff02::1", "::ffff:127.0.0.1", "::ffff:10.0.0.5",
+        "64:ff9b::7f00:1", "2002:7f00:1::", "2001:0:4136:e378:8000:63bf:3fff:fdd2"])
+    def test_what_may_never_be_allowed_is_refused_outright(self, monkeypatch, address):
+        from pybreeze.utils.network.url_validation import LocalAddressNeedsApprovalError
+
+        self._resolving(monkeypatch, address)
+
+        with pytest.raises(UnsafeURLError) as refused:
+            validate_url("http://model.test/")
+
+        assert not isinstance(refused.value, LocalAddressNeedsApprovalError)
+
+    @pytest.mark.parametrize("address", ["169.254.169.254", "100.64.0.1", "::ffff:127.0.0.1", "0.0.0.0"])
+    def test_allowing_one_changes_nothing(self, monkeypatch, address):
+        # A caller cannot widen what may be allowed by passing the address back
+        self._resolving(monkeypatch, address)
+
+        with pytest.raises(UnsafeURLError):
+            validate_url("http://model.test/", allowed_local=[address])
+
+    def test_an_allowed_address_passes(self, monkeypatch):
+        from pybreeze.utils.network.url_validation import public_addresses
+
+        self._resolving(monkeypatch, "127.0.0.1")
+
+        assert validate_url("http://model.test/", allowed_local={"127.0.0.1"}) == "http://model.test/"
+        assert public_addresses("model.test", {"127.0.0.1"}) == ["127.0.0.1"]
+
+    def test_an_allowed_address_is_the_same_however_it_is_written(self, monkeypatch):
+        from pybreeze.utils.network.url_validation import public_addresses
+
+        self._resolving(monkeypatch, "::1")
+
+        assert public_addresses("model.test", ["0:0:0:0:0:0:0:1", "not an address"]) == ["::1"]
+
+    def test_only_the_address_allowed_passes(self, monkeypatch):
+        # Asked about 127.0.0.1, the name then answers another private address
+        from pybreeze.utils.network.url_validation import LocalAddressNeedsApprovalError
+
+        self._resolving(monkeypatch, "10.0.0.5")
+
+        with pytest.raises(LocalAddressNeedsApprovalError) as refused:
+            validate_url("http://model.test/", allowed_local={"127.0.0.1"})
+
+        assert refused.value.addresses == ("10.0.0.5",)
+
+    def test_every_address_of_the_name_has_to_be_allowed(self, monkeypatch):
+        from pybreeze.utils.network.url_validation import LocalAddressNeedsApprovalError
+
+        self._resolving(monkeypatch, "127.0.0.1", "192.168.1.9", "192.168.1.9")
+
+        with pytest.raises(LocalAddressNeedsApprovalError) as refused:
+            validate_url("http://model.test/", allowed_local={"127.0.0.1"})
+
+        assert refused.value.addresses == ("192.168.1.9",)
+
+    def test_one_address_that_may_not_be_allowed_refuses_the_name_outright(self, monkeypatch):
+        from pybreeze.utils.network.url_validation import LocalAddressNeedsApprovalError
+
+        self._resolving(monkeypatch, "127.0.0.1", "169.254.169.254")
+
+        with pytest.raises(UnsafeURLError) as refused:
+            validate_url("http://model.test/")
+
+        assert not isinstance(refused.value, LocalAddressNeedsApprovalError)
+
+    def test_a_public_name_with_a_local_address_beside_it_names_only_the_local_one(self, monkeypatch):
+        from pybreeze.utils.network.url_validation import LocalAddressNeedsApprovalError
+
+        self._resolving(monkeypatch, "93.184.215.14", "127.0.0.1")
+
+        with pytest.raises(LocalAddressNeedsApprovalError) as refused:
+            validate_url("http://model.test/")
+
+        assert refused.value.addresses == ("127.0.0.1",)
+
+    def test_a_literal_address_is_asked_about_under_itself(self):
+        from pybreeze.utils.network.url_validation import LocalAddressNeedsApprovalError
+
+        with pytest.raises(LocalAddressNeedsApprovalError) as refused:
+            validate_url("http://127.0.0.1:11434/api")
+
+        assert (refused.value.host, refused.value.addresses) == ("127.0.0.1", ("127.0.0.1",))
+
+    def test_allowing_does_not_open_another_scheme(self):
+        with pytest.raises(UnsafeURLError):
+            validate_url("file://127.0.0.1/etc/passwd", allowed_local={"127.0.0.1"})

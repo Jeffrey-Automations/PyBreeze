@@ -8,16 +8,19 @@ whole:
 ``--protocol <version>``  answer the handshake with that protocol version
 ``--pages``               list the tools one a page
 ``--silent``              never answer the handshake
+``--changing``            offer the tool ``change``, which changes what the server offers and says so
 """
 import json
 import os
 import sys
+import threading
 import time
 
 OPTIONS = sys.argv[1:]
 PROTOCOL = OPTIONS[OPTIONS.index("--protocol") + 1] if "--protocol" in OPTIONS else None
 PAGES = "--pages" in OPTIONS
 SILENT = "--silent" in OPTIONS
+CHANGING = "--changing" in OPTIONS
 
 
 def text_schema(*required):
@@ -44,6 +47,9 @@ TOOLS = [
     {"name": "wrong_shape", "description": "Answer with a result that is not an object.",
      "inputSchema": {"type": "object"}},
 ]
+if CHANGING:
+    TOOLS.append({"name": "change", "description": "Change what this server offers, and say so.",
+                  "inputSchema": {"type": "object"}})
 RESOURCES = [
     {"uri": "memo://greeting", "name": "greeting", "description": "A greeting.", "mimeType": "text/plain"},
     {"uri": "memo://logo", "name": "logo", "mimeType": "image/png"},
@@ -56,9 +62,31 @@ PROMPTS = [{"name": "review", "description": "Ask for a review of some code.", "
 seen = {"cancelled": [], "replies": [], "notifications": []}
 
 
+_sending = threading.Lock()
+
+
 def send(message):
-    sys.stdout.write(json.dumps(message) + "\n")
-    sys.stdout.flush()
+    with _sending:
+        sys.stdout.write(json.dumps(message) + "\n")
+        sys.stdout.flush()
+
+
+def change(arguments):
+    """Add and remove what *arguments* names, then send the notification of each list that changed."""
+    added, removed, described = arguments.get("add"), arguments.get("remove"), arguments.get("describe")
+    if added:
+        TOOLS.append({"name": added, "description": "Added later.", "inputSchema": text_schema("text")})
+        RESOURCES.append({"uri": "memo://" + added, "name": added})
+        PROMPTS.append({"name": added, "arguments": [{"name": "topic", "required": True}]})
+    if removed:
+        TOOLS[:] = [tool for tool in TOOLS if tool["name"] != removed]
+        RESOURCES[:] = [resource for resource in RESOURCES if resource["name"] != removed]
+        PROMPTS[:] = [prompt for prompt in PROMPTS if prompt["name"] != removed]
+    for tool in TOOLS:
+        if tool["name"] == described:
+            tool["description"] = "Now does something else."
+    for changed in arguments.get("say", ["tools", "resources", "prompts"]):
+        send({"jsonrpc": "2.0", "method": "notifications/" + changed + "/list_changed"})
 
 
 def content(text):
@@ -97,6 +125,14 @@ def call(name, arguments, request_id):
                             {"type": "resource", "resource": {"uri": "memo://greeting", "text": "hello"}}]}
     if name == "seen":
         return content(json.dumps(seen, sort_keys=True))
+    if name == "change" and CHANGING:
+        later = float(arguments.get("later", 0))
+        if later:
+            # After the answer, while the client is doing nothing
+            threading.Timer(later, change, [arguments]).start()
+        else:
+            change(arguments)
+        return content("changed")
     if name == "wrong_shape":
         send({"jsonrpc": "2.0", "id": request_id, "result": "not an object"})
         return None

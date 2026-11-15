@@ -1,41 +1,42 @@
 """The navigation panel: PyBreeze's areas as a tree that stays in view and can be searched.
 
-It is a dock at the left of the main window. Typing in its box keeps the lines
-that hold the text, and Enter or a double click on a line does what the menu
-entry it stands for does. What it lists is decided by ``navigation_model``.
+Typing in its box keeps the lines that hold the text, and Enter or a double
+click on a line does what the menu entry it stands for does. What it lists is
+decided by ``navigation_model``.
+
+``NavigationPanel`` is a view of the side bar of JEditor's window, with an icon
+in the activity bar (``PyBreezeMainWindow._add_navigation``).
 """
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QDockWidget, QLineEdit, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QLineEdit, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget
 from je_editor import language_wrapper
 
 from pybreeze.pybreeze_ui.design.panels import StatusLine
 from pybreeze.pybreeze_ui.design.tokens import Space, State, TextRole, apply_spacing, em, text_font
 from pybreeze.pybreeze_ui.navigation.navigation_model import CATEGORIES, NavigationEntry
 from pybreeze.utils.logging.logger import pybreeze_logger
-from pybreeze.utils.ui_state import remember
 
-# The name the panel's visibility is remembered under (utils/ui_state.py)
-VISIBLE_STATE = "navigation_visible"
+# The panel's ID as a view of JEditor's shell, which its saved layout names
+NAVIGATION_VIEW = "pybreeze_navigation"
 # The least width the panel asks for, in ems: room for a tool's name
 _MIN_WIDTH_EMS = 14
 # Where an item keeps the entry it stands for
 _ENTRY_ROLE = Qt.ItemDataRole.UserRole
 
 
-class NavigationDock(QDockWidget):
+class NavigationPanel(QWidget):
     """The navigation tree with its search box.
 
     :param navigation: what each category holds, by the category's key
         (``navigation_model.build_navigation``)
-    :param parent: the main window
+    :param parent: the Qt parent
     """
 
     def __init__(self, navigation: dict[str, list[NavigationEntry]], parent: QWidget | None = None) -> None:
         word = language_wrapper.language_word_dict
-        super().__init__(word.get("navigation_dock_title"), parent)
-        self.setObjectName("pybreeze_navigation")
+        super().__init__(parent)
 
         self.filter_edit = QLineEdit()
         self.filter_edit.setPlaceholderText(word.get("navigation_filter_placeholder"))
@@ -49,14 +50,12 @@ class NavigationDock(QDockWidget):
         self.status = StatusLine()
         self.status.hide()
 
-        body = QWidget()
-        layout = QVBoxLayout(body)
+        layout = QVBoxLayout(self)
         apply_spacing(layout, around=Space.TIGHT)
         layout.addWidget(self.filter_edit)
         layout.addWidget(self.tree)
         layout.addWidget(self.status)
-        body.setMinimumWidth(_MIN_WIDTH_EMS * em(body))
-        self.setWidget(body)
+        self.setMinimumWidth(_MIN_WIDTH_EMS * em(self))
 
         self._fill(navigation)
 
@@ -88,7 +87,7 @@ class NavigationDock(QDockWidget):
             entry.activate()
         except RuntimeError as error:
             # The menu action it stood for is gone (a menu rebuilt since the panel was filled)
-            pybreeze_logger.error("navigation_dock.py entry %r could not be activated: %r", entry.text, error)
+            pybreeze_logger.error("navigation_panel.py entry %r could not be activated: %r", entry.text, error)
 
     def apply_filter(self, text: str) -> None:
         """Keep the lines that hold *text*, whatever its case, with the lines they are under.
@@ -120,9 +119,3 @@ class NavigationDock(QDockWidget):
         if wanted and any(kept):
             item.setExpanded(True)
         return shown
-
-    def closeEvent(self, event) -> None:
-        # Closed with its own button: stay closed next time. The Dock menu's
-        # entry remembers the same when it is used (main_ui.py).
-        remember(VISIBLE_STATE, False)
-        super().closeEvent(event)

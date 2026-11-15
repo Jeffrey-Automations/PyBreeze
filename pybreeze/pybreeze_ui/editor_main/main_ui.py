@@ -5,7 +5,7 @@ import sys
 from os import environ
 from pathlib import Path
 
-from pybreeze.utils.subprocess_util import IDE_ONLY
+from pybreeze.utils.subprocess_util import IDE_ONLY, child_environment
 
 # locust patches the whole process with gevent as it imports unless this is set,
 # and the IDE imports it: the Load Density GUI, or a user in JEditor's
@@ -14,15 +14,20 @@ from pybreeze.utils.subprocess_util import IDE_ONLY
 # is kept, for both.
 environ["LOCUST_SKIP_MONKEY_PATCH"] = environ.get("LOCUST_SKIP_MONKEY_PATCH") or IDE_ONLY
 
-from PySide6.QtCore import QTimer, QCoreApplication, Qt
+from PySide6.QtCore import QTimer, QCoreApplication
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QWidget
-from je_editor import EditorMain, EditorWidget, language_wrapper
+from je_editor import (
+    EditorMain,
+    EditorWidget,
+    JEditorExecException,
+    language_wrapper,
+    set_child_environment_provider,
+)
 from je_editor.pyside_ui.main_ui.dock.destroy_dock import DestroyDock
 from je_editor.pyside_ui.main_ui.save_settings.user_setting_file import user_setting_dict
-from qt_material import apply_stylesheet
 
-from pybreeze.extend.language_server.launch import ACTION_SCRIPT_SUFFIX, can_serve, offer_to_jeditor
+from pybreeze.extend.language_server.launch import ACTION_SCRIPT_SUFFIX, offer_to_jeditor
 from pybreeze.extend.process_executor.python_task_process_manager import default_interpreter
 from pybreeze.extend_multi_language.update_language_dict import update_language_dict
 from pybreeze.pybreeze_ui.code_result_logs import show_only_warnings_in_code_result
@@ -30,13 +35,12 @@ from pybreeze.pybreeze_ui.closing import AskingDock, may_close
 from pybreeze.pybreeze_ui.editor_main.file_tree_context_menu import setup_file_tree_context_menu
 from pybreeze.pybreeze_ui.gui_thread_gc import collect_garbage_on_gui_thread
 from pybreeze.pybreeze_ui.menu.build_menubar import add_menu_to_menubar
-from pybreeze.pybreeze_ui.navigation.navigation_dock import VISIBLE_STATE, NavigationDock
+from pybreeze.pybreeze_ui.navigation.navigation_panel import NAVIGATION_VIEW, NavigationPanel
 from pybreeze.pybreeze_ui.navigation.navigation_model import build_navigation
 from pybreeze.pybreeze_ui.show_code_window.code_window import CodeWindow
 from pybreeze.pybreeze_ui.syntax.syntax_extend import \
     syntax_extend_package
 from pybreeze.utils.logging.logger import pybreeze_logger
-from pybreeze.utils.ui_state import read_ui_state, remember
 
 
 EDITOR_EXTEND_TAB: dict[str, type[QWidget]] = {
@@ -45,11 +49,6 @@ EDITOR_EXTEND_TAB: dict[str, type[QWidget]] = {
 # Shipped beside this module (package data): it was read from the working
 # folder, which a started IDE never has, and the window had no icon
 _ICON_PATH = Path(__file__).with_name("pybreeze_icon.ico")
-
-
-def _remember_navigation_visible(visible: bool) -> None:
-    """Keep for the next start whether the navigation panel is shown (its Dock menu entry was used)."""
-    remember(VISIBLE_STATE, visible)
 
 
 def _close_guarded(widget: QWidget, *steps) -> None:
@@ -70,12 +69,36 @@ def _close_guarded(widget: QWidget, *steps) -> None:
 
 class PyBreezeMainWindow(EditorMain):
 
+    @property
+    def python_compiler(self) -> str | None:
+        """The interpreter chosen in the IDE for running scripts, ``None`` when none was.
+
+        JEditor's Python Env menu and its venv detection set it as a plain
+        attribute. It is a property here so that the choice reaches the action
+        language server: the editors' completion and diagnostics used to keep
+        the keywords of the interpreter the IDE started with until a restart.
+        """
+        return getattr(self, "_python_compiler", None)
+
+    @python_compiler.setter
+    def python_compiler(self, interpreter: str | None) -> None:
+        changed = interpreter != getattr(self, "_python_compiler", None)
+        self._python_compiler = interpreter
+        # Not before the window has offered the server once: JEditor sets this while it is still building
+        if changed and getattr(self, "_language_server_offered", False):
+            self._offer_language_server()
+
     def __init__(self, debug_mode: bool = False, show_system_tray_ray: bool = False, extend: bool = False) -> None:
         # PyBreeze's strings must be in JEditor's word dicts before EditorMain.__init__
         # picks the startup language: for any language but English it builds the
         # dictionary it reads from as a merged copy, so strings added afterwards are
         # missing from it, and a menu given a None title crashes Qt.
         update_language_dict()
+        # JEditor's Run Program, Run Debugger, shell, terminal and test panel start
+        # processes of their own; they get child_environment() too, so that a
+        # variable the IDE set for itself alone (LOCUST_SKIP_MONKEY_PATCH) stays
+        # out of the user's programs. Before anything can be run from the window
+        set_child_environment_provider(child_environment)
         super().__init__(debug_mode, show_system_tray_ray, extend=True)
         show_only_warnings_in_code_result()
         # Note: EditorMain.__init__ already calls load_external_plugins()
@@ -115,7 +138,7 @@ class PyBreezeMainWindow(EditorMain):
         self.run_menu.stop_all_program_action.triggered.connect(self.stop_all_runs)
 
         # Navigation: what the menus hold, as a tree that stays in view
-        self._add_navigation_dock()
+        self._add_navigation()
 
         # Action scripts are completed and checked from the installed frameworks' keywords
         self._offer_language_server()
@@ -132,40 +155,61 @@ class PyBreezeMainWindow(EditorMain):
             close_timer.timeout.connect(self.debug_close)
             close_timer.start()
 
-    def _add_navigation_dock(self) -> None:
-        """Add the navigation panel at the left, shown unless the user closed it last time.
+    def _add_navigation(self) -> None:
+        """Add the navigation panel as a view of the side bar.
 
-        Built after the menus: each of its lines is one of their actions. Its
-        entry in the Dock menu shows and hides it. Whether it is shown is
-        remembered only when the user says so (that entry, or the panel's own
-        close button): the entry's checked state also changes as the IDE closes.
+        Built after the menus: each of its lines is one of their actions.
+        JEditor's shell gives it an icon in the activity bar and an entry in
+        the View menu, and remembers with its own layout whether it is the
+        view shown. JEditor restored that layout while it was building the
+        window, before this view existed, so it is restored again here; on a
+        first start, with nothing saved, the panel is the view shown.
         """
-        self.navigation_dock = NavigationDock(build_navigation(self), self)
-        self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.navigation_dock)
-        self.navigation_dock.setVisible(read_ui_state().get(VISIBLE_STATE) is not False)
-        toggle = self.navigation_dock.toggleViewAction()
-        toggle.triggered.connect(_remember_navigation_visible)
-        self.dock_menu.addAction(toggle)
+        workbench = self.workbench
+        self.navigation_panel = NavigationPanel(build_navigation(self))
+        workbench.add_view(
+            NAVIGATION_VIEW, "side", widget=self.navigation_panel,
+            title_key="navigation_dock_title", icon="navigation")
+        if workbench.has_saved_layout():
+            workbench.restore_layout()
+        else:
+            workbench.show_view(NAVIGATION_VIEW)
 
     def _offer_language_server(self) -> None:
         """Have the editors ask PyBreeze's language server about JSON files.
 
         The server reads the keywords of the frameworks installed for the
-        interpreter the scripts run with, as it is when the IDE starts. A
-        packaged build has no interpreter to run the server with, and offers
-        none. The editors JEditor restored looked for a server while it was
-        building them, before this one was on offer: those holding a JSON
-        file look again.
+        interpreter the scripts run with. It is offered as the IDE starts and
+        again whenever another interpreter is chosen (the ``python_compiler``
+        setter): the server's command names the interpreter, so the editors
+        holding a JSON file leave the old server for a new one. The editors
+        JEditor restored looked for a server while it was building them,
+        before this one was on offer: they look again the same way. Starting a
+        server is a ``QProcess``; nothing here waits for it.
         """
-        if not can_serve():
-            return
-        offer_to_jeditor(self.python_compiler or default_interpreter(), language_wrapper.language)
+        self._language_server_offered = True
+        offer_to_jeditor(self._script_interpreter(), language_wrapper.language)
         for index in range(self.tab_widget.count()):
             widget = self.tab_widget.widget(index)
             if not isinstance(widget, EditorWidget) or widget.code_edit.current_file is None:
                 continue
             if Path(str(widget.code_edit.current_file)).suffix.lower() == ACTION_SCRIPT_SUFFIX:
                 widget.code_edit.start_language_server()
+
+    def _script_interpreter(self) -> str | None:
+        """The Python that runs the scripts: the one chosen, else the default; ``None`` when there is none.
+
+        Only a packaged build can be without one (no ``venv`` in the folder and
+        no Python on ``PATH``). The server is offered all the same: it still
+        says whether a JSON file is JSON, and why it has no keywords.
+        """
+        if self.python_compiler:
+            return self.python_compiler
+        try:
+            return default_interpreter()
+        except JEditorExecException as error:
+            pybreeze_logger.info("main_ui.py no interpreter for the language server's keywords: %r", error)
+            return None
 
     def _add_extend_tabs(self) -> None:
         """Add every registered ``EDITOR_EXTEND_TAB`` widget as a tab.
@@ -268,9 +312,10 @@ def start_editor(debug_mode: bool = False, theme: str | None = None, **kwargs) -
     """
     Start editor instance
     :param debug_mode: enable debug mode with auto-close timer
-    :param theme: qt_material theme name (e.g. "dark_teal.xml", "light_blue.xml"). It replaces
-        the theme picked from UI Style, and is kept as the picked one. ``None`` starts with the
-        picked theme, ``dark_amber.xml`` until one is picked
+    :param theme: a theme of JEditor's own ("jeditor_dark", "jeditor_light") or a qt_material
+        theme name (e.g. "dark_teal.xml", "light_blue.xml"). It replaces the theme picked from
+        UI Style, and is kept as the picked one. ``None`` starts with the picked theme, JEditor's
+        default until one is picked
     :return: None
     """
     new_ide = QCoreApplication.instance()
@@ -297,13 +342,13 @@ def open_main_window(app: QApplication, debug_mode: bool = False, theme: str | N
 
     :param app: the running application, which the theme is applied to
     :param debug_mode: close by itself after a while, as the startup tests need
-    :param theme: qt_material theme name, which replaces the one picked from UI Style and is
-        kept as the picked one; ``None`` keeps the picked one
+    :param theme: a JEditor or qt_material theme name, which replaces the one picked from UI
+        Style and is kept as the picked one; ``None`` keeps the picked one
     :return: the window, which the caller keeps for as long as the IDE runs
     """
     window = PyBreezeMainWindow(debug_mode=debug_mode, **kwargs)
     if theme is not None:
-        _apply_given_theme(app, window, theme)
+        _apply_given_theme(window, theme)
     else:
         # startup_setting() sets the window's font style sheet before the
         # application's theme; set again after it, as a second run of it did,
@@ -313,7 +358,7 @@ def open_main_window(app: QApplication, debug_mode: bool = False, theme: str | N
     return window
 
 
-def _apply_given_theme(app: QApplication, window: PyBreezeMainWindow, theme: str) -> None:
+def _apply_given_theme(window: PyBreezeMainWindow, theme: str) -> None:
     """Make *theme* the picked one and apply the settings with it (``startup_setting()``)."""
     user_setting_dict["ui_style"] = theme
     try:
@@ -322,4 +367,5 @@ def _apply_given_theme(app: QApplication, window: PyBreezeMainWindow, theme: str
     # a bad one is logged, and the theme is still applied.
     except (OSError, ValueError, TypeError, KeyError, RuntimeError) as error:
         pybreeze_logger.error("Startup setting error: %r", error)
-        apply_stylesheet(app, theme=theme)
+        # JEditor applies its own themes and qt_material's alike, with the editor's colours
+        window.apply_style(theme)

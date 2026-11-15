@@ -92,11 +92,13 @@ By symptom
      - It reads a package's ``_success`` / ``_failure`` files (JSON or XML), JUnit XML,
        and reports exported from PyBreeze. A package's HTML report is not read: open
        the JSON beside it.
-   * - A request to ``127.0.0.1`` is refused by the AI review or the diagram's image
-       download
+   * - A request to ``127.0.0.1`` is refused by the diagram's image download, or asked
+       about by the AI review
      - By design: requests PyBreeze itself sends to a URL you type are refused for
-       loopback and private addresses. Tests you **run** (the automation packages)
-       are not affected.
+       loopback and private addresses. The AI panels (AI Code Review, CoT Code Review,
+       Skill Send) ask first instead, naming the address, so a local model server can be
+       used; answer **Yes** to send. Tests you **run** (the automation packages) are not
+       affected.
    * - The main window is wider than the screen
      - The window has a least width set by the editor's Git panel; use a larger
        display or a smaller UI font (**UI Style** and the font settings).

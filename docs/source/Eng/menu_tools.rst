@@ -137,6 +137,9 @@ connected server's tools, resources and prompts. A tool call is asked about befo
 is sent, with its arguments, unless that tool of that server was trusted; a server
 named by a project's ``.mcp.json`` is never started without being asked about. Calls
 can be cancelled, and the session's calls are exported or opened in the report viewer.
+A server that changes its tools, resources or prompts while connected is read again in
+the background: the selected item, the arguments typed for it and the last result stay,
+and a trusted tool the server has since described differently is asked about again.
 See :doc:`tutorials/t10_mcp_client`.
 
 Report Viewer

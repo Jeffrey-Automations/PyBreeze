@@ -58,6 +58,18 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | ID | Date | Title | Tags | Batch |
 |---|---|---|---|---|
+| U-20261116-02 | 2026-11-16 | Require je-editor 1.0.35 and PySide6 6.12.0; build with Nuitka | #done #deps #jeditor #packaging | [2026-11](2026-11.md) |
+| U-20261116-01 | 2026-11-16 | JEditor's own runs get the child environment; the Variable Inspector works upstream | #done #jeditor #process | [2026-11](2026-11.md) |
+| U-20261115-10 | 2026-11-15 | The editor follows the interpreter chosen under Python Env | #done #lsp | [2026-11](2026-11.md) |
+| U-20261115-09 | 2026-11-15 | A packaged build runs the language server from its own executable | #done #lsp #packaging | [2026-11](2026-11.md) |
+| U-20261115-08 | 2026-11-15 | The MCP tab follows a server that changes what it offers | #done #mcp #ui | [2026-11](2026-11.md) |
+| U-20261115-07 | 2026-11-15 | AI panels may use a local endpoint after asking | #done #security #ai | [2026-11](2026-11.md) |
+| U-20261115-06 | 2026-11-15 | prthinker key fields for Gemini, Cohere and Mistral | #done #prthinker | [2026-11](2026-11.md) |
+| U-20261115-05 | 2026-11-15 | The embedded JupyterLab asks for a token | #done #security #jupyter | [2026-11](2026-11.md) |
+| U-20261115-04 | 2026-11-15 | Dependencies declared and pinned | #done #deps #security | [2026-11](2026-11.md) |
+| U-20261115-03 | 2026-11-15 | progress.md rewritten in Traditional Chinese; twelve items closed | #decision #docs | [2026-11](2026-11.md) |
+| U-20261115-02 | 2026-11-15 | Main window screenshots and UI overview for the new shell | #docs #ui | [2026-11](2026-11.md) |
+| U-20261115-01 | 2026-11-15 | Navigation as a side bar view of JEditor's new shell | #migration #ui #jeditor | [2026-11](2026-11.md) |
 | U-20261102-01 | 2026-11-02 | Require Python 3.11; stop supporting 3.10 | #migration #deps #ci | [2026-11](2026-11.md) |
 | U-20261101-01 | 2026-11-01 | Patch setuptools and certifi in the publish lock | #bugfix #deps #security #ci | [2026-11](2026-11.md) |
 | U-20261012-01 | 2026-10-12 | Verify framework document keys through their public executors | #incident #tests #compatibility | [2026-10](2026-10.md) |
@@ -720,7 +732,7 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | File | Period | Entries |
 |---|---|---:|
-| [2026-11.md](2026-11.md) | 2026-11 | 2 |
+| [2026-11.md](2026-11.md) | 2026-11 | 14 |
 | [2026-09.md](2026-09.md) | 2026-09 | 218 |
 | [2026-09-b.md](2026-09-b.md) | 2026-09 | 120 |
 | [2026-09-c.md](2026-09-c.md) | 2026-09 | 115 |

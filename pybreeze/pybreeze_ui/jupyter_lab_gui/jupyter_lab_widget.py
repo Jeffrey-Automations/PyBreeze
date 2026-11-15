@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sys
 
-from PySide6.QtCore import Qt, QUrl
+from PySide6.QtCore import Qt, QUrl, QUrlQuery
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import QApplication, QVBoxLayout, QWidget, QLabel
 from je_editor import language_wrapper
@@ -56,7 +56,13 @@ class JupyterLabWidget(QWidget):
             self.status_label = None
 
         self.lab_page.lab_url = QUrl(url)
-        self.browser.setUrl(QUrl(url))
+        # The first request carries this launch's token; the server answers
+        # with a cookie, and the lab's own requests go on from that
+        address = QUrl(url)
+        query = QUrlQuery()
+        query.addQueryItem("token", self.launcher.token)
+        address.setQuery(query)
+        self.browser.setUrl(address)
         self.browser.show()
 
     def show_error(self, msg):

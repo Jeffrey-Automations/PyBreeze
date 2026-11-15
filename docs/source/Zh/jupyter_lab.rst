@@ -15,7 +15,8 @@ PyBreeze 包含嵌入式 JupyterLab 環境，讓您可以直接在 IDE 中使用
 若 lab 所用的直譯器無法匯入 ``jupyterlab``，PyBreeze 會先以 ``pip install -U jupyterlab jupyter_server``
 安裝到該直譯器。狀態標籤會顯示進度。
 
-lab 的伺服器沒有 token，只有在頁面裡沒有東西能操控它時才安全。直譯器裡的 JupyterLab 是 4.5.10 之前
+lab 的伺服器只在本機接聽，並要求每次啟動時產生的 token；分頁的畫面會自己帶上它，本機上的其他程式或其他帳號
+沒有 token 就用不了這個伺服器。因此在系統瀏覽器裡開啟的 lab 連結會看到登入頁。lab 裡的頁面本身已經登入，所以直譯器裡的 JupyterLab 是 4.5.10 之前
 或 4.6.0、4.6.1，或 jupyter_server 是 2.20.0 之前（有頁面可以利用的已知漏洞的版本）時，會先用同一個
 指令升級，狀態標籤會說出升級的是哪一個。升級失敗時（例如離線），lab 仍以現有的版本啟動，並把警告寫進
 日誌與 Code Result 面板。

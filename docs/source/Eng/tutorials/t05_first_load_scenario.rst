@@ -54,9 +54,6 @@ If it does not work
 - Every request fails: the site is not running on the port the script names.
 - The second terminal fills with lines: that is ``http.server`` logging each request,
   as it should.
-- Users seem to run one after another when a locust script is started with the
-  editor's **Run Program** instead of this menu: use the Automation menu, which starts
-  the load test with the environment it needs.
 
 Next
 ----
