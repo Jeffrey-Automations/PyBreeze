@@ -11,7 +11,11 @@
 
 ![PyBreeze 主視窗](../images/main_window.png)
 
-*主視窗：編輯器開著一個 APITestka 動作檔，左側是專案樹，下方是執行／格式檢查／除錯／終端機面板。*
+*預設主題下的主視窗：編輯器開著一個 APITestka 動作檔，側邊欄顯示導覽面板，最左邊是活動列，下方是輸出／問題／終端機／除錯面板。*
+
+![PyBreeze 主視窗，淺色主題](../images/main_window_light.png)
+
+*同一個視窗在 JEditor Light 主題下，側邊欄顯示檔案總管。*
 
 ---
 
@@ -538,4 +542,4 @@ MIT — 請參閱 [LICENSE](../LICENSE)。Copyright (c) 2022 JE-Chen
 
 ---
 
-<sub>截圖是在 Windows 11 上以 `dark_amber` 主題（擷取當時的預設主題），從實際的 PyBreeze 元件渲染而來；每個工具中的範例資料都是由實際程式路徑處理過的真實輸入。</sub>
+<sub>截圖是在 Windows 11 上（主視窗與選單是預設的 JEditor Dark 主題，工具分頁是擷取當時的預設主題 `dark_amber`）從實際的 PyBreeze 元件渲染而來；每個工具中的範例資料都是由實際程式路徑處理過的真實輸入。</sub>

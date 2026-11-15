@@ -3,8 +3,18 @@ UI 總覽
 
 .. image:: images/ui.png
 
-PyBreeze 提供基於分頁和停靠面板的介面，使用 PySide6（Qt for Python）與 JEditor 編輯器引擎建構。
-主視窗由以下幾個主要區域組成。
+PyBreeze 的視窗就是 JEditor 的視窗：最左邊是活動列，旁邊是側邊欄，中間是編輯分頁，下方是面板，
+右邊是第二側邊欄，以 PySide6（Qt for Python）建構。上圖是預設主題 JEditor Dark，側邊欄顯示導覽面板。
+
+.. image:: images/ui_light.png
+
+同一個視窗在 JEditor Light 主題下，側邊欄顯示檔案總管。
+
+.. note::
+
+   本頁說明的是搭配有外框（活動列與側邊欄）的 JEditor 時的視窗。搭配較早的 JEditor（例如 1.0.27）時，
+   每個編輯分頁各有自己的檔案樹與輸出面板，導覽面板是左側的停靠面板，由 **Dock > Navigation** 顯示或隱藏，
+   預設主題是 ``dark_amber.xml``。
 
 本指南的選單與按鈕名稱以英文介面為準。在 **Language** 選單選「繁體中文」後，介面會顯示對應的中文名稱，
 例如 **Tools** 是「工具」、**Dock** 是「區域」、**Automation** 是「自動化」。
@@ -32,29 +42,29 @@ PyBreeze 提供基於分頁和停靠面板的介面，使用 PySide6（Qt for Py
   MCP 用戶端與報告檢視器（見 :doc:`menu_tools`）
 - **Plugins** -- 外掛瀏覽器與已載入的外掛（見 :doc:`menu_plugins`）
 
+活動列與側邊欄
+^^^^^^^^^^^^^^
+
+視窗最左邊的圖示讓側邊欄在各個面板之間切換： **Explorer** （檔案樹）、 **Outline**、
+**Run and Debug**、 **Testing**、 **TODO**，以及 PyBreeze 的 **Navigation**。點目前顯示的面板的圖示
+會收起側邊欄， **View > Toggle Side Bar** 也一樣。離開時開著哪個面板、側邊欄是否開著，會跟著專案記住。
+
 導覽面板
 ^^^^^^^^
 
-視窗左側的停靠面板，把各選單的內容分成五類列出： **Automation**、 **Tools**、 **MCP**、
-**Reports** 與 **Settings**。在它的輸入框打字會留下含有那段文字的項目；在某一行按 Enter
-或按兩下，效果和選單項目相同。 **Dock > Navigation** 可以顯示或隱藏它，是否顯示會被記住。
+側邊欄的一個面板，在活動列上是指南針圖示，把各選單的內容分成五類列出： **Automation**、 **Tools**、
+**MCP**、 **Reports** 與 **Settings**。在它的輸入框打字會留下含有那段文字的項目；在某一行按 Enter
+或按兩下，效果和選單項目相同。第一次啟動時顯示的就是它， **View > Navigation** 可以切換到它。
 
 檔案樹
 ^^^^^^
 
-位於視窗左側，提供檔案瀏覽器用於導覽專案目錄。您可以：
+側邊欄的 **Explorer** 面板：整個視窗共用一棵樹，不論前景是哪個分頁。您可以：
 
 - 瀏覽檔案和資料夾
-- 單擊檔案會把它開進前景的編輯分頁，取代該分頁顯示的內容（那裡未存的文字會直接消失，不會詢問，見下方說明）；
-  已在某個分頁開啟的檔案則會切換到那個分頁
+- 單擊檔案會把它開在自己的分頁；空白且沒改過的分頁會直接拿來用，已在某個分頁開啟的檔案則會切換到那個分頁
 - 右鍵任何檔案或資料夾以開啟功能選單（詳見下方）
 - 檔案樹有焦點時，按 **F2** 重新命名、按 **Delete** 刪除焦點所在的項目
-
-.. note::
-
-   在 JEditor 1.0.27 中，把檔案開進分頁——在檔案樹中單擊，或 **File > Open File**——不會詢問該分頁原本的文字。
-   有檔案的分頁每隔幾秒會自動存檔，但新分頁的文字、或最後幾秒打的字會消失。要保留它們，請先開新分頁
-   （**Tab > Add Editor Tab**）。
 
 檔案樹右鍵選單
 """"""""""""""
@@ -101,16 +111,21 @@ PyBreeze 提供基於分頁和停靠面板的介面，使用 PySide6（Qt for Py
 - 可透過 ``EDITOR_EXTEND_TAB`` 擴充自訂分頁（見 :doc:`how_to_extend_ui`）
 - 有未儲存內容的工具分頁（提示詞編輯器、架構圖編輯器）關閉前會先詢問，關閉 IDE 時也是
 
-輸出面板
+下方面板
 ^^^^^^^^
 
-每個編輯器分頁下方都有一個面板，包含 **Code result**、**Format checker**、**Debugger**、**Terminal**、
-**Variable Inspector** 與 **Git Client** 這幾個分頁：
+編輯分頁下方的面板屬於視窗，而不是某個分頁，包含 **Output**、 **Problems**、 **Terminal**、
+**Source Control**、 **Debug Console**、 **Format Check** 與 **Variables**：
 
-- **Code result** 顯示 **Run Program** 與 **Run On Shell** 的輸出，錯誤以主題的錯誤色呈現，
+- **Output** 顯示 **Run Program** 與 **Run On Shell** 的輸出，錯誤以主題的錯誤色呈現，
   也會顯示 IDE 的日誌訊息（只有警告與錯誤）；
-- **Format checker** 列出 **Check Code Style > Python format check** 找到的問題；
-- **Debugger** 是 **Run Debugger** 執行的地方。
+- **Problems** 列出 ``ruff`` 與語言伺服器找到的問題；
+- **Source Control** 是 Git 用戶端；
+- **Format Check** 列出 **Check Code Style > Python format check** 找到的問題；
+- **Debug Console** 是除錯器輸出的地方。
+
+**View > Toggle Panel** 可以顯示或隱藏它，面板右端的按鈕也可以。AI 聊天開在右邊的第二側邊欄
+（ **View > Toggle Secondary Side Bar** ）。
 
 執行視窗
 ^^^^^^^^
@@ -141,10 +156,12 @@ PyBreeze 提供基於分頁和停靠面板的介面，使用 PySide6（Qt for Py
 主題系統
 --------
 
-PyBreeze 使用 `qt_material <https://github.com/UN-GCPDS/qt-material>`_ 提供主題。
-**UI Style** 選單列出這些主題：
+**UI Style** 選單先列出 JEditor 的兩個主題，接著是
+`qt_material <https://github.com/UN-GCPDS/qt-material>`_ 的主題：
 
-- ``dark_amber.xml``\ （預設）
+- ``jeditor_dark`` -- **JEditor Dark**\ （預設）
+- ``jeditor_light`` -- **JEditor Light**
+- ``dark_amber.xml``
 - ``dark_blue.xml``
 - ``dark_cyan.xml``
 - ``dark_lightgreen.xml``
@@ -167,7 +184,7 @@ PyBreeze 使用 `qt_material <https://github.com/UN-GCPDS/qt-material>`_ 提供�
 
    from pybreeze import start_editor
 
-   start_editor(theme="dark_teal.xml")
+   start_editor(theme="jeditor_light")
 
 從 **UI Style** 選的主題會被儲存，下次啟動時使用。傳給 ``start_editor`` 的主題會取代它，並改存成這一個。
 

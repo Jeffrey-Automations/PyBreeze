@@ -11,7 +11,11 @@
 
 ![PyBreeze 主窗口](../images/main_window.png)
 
-*主窗口：编辑器打开着一个 APITestka 动作文件，左侧是项目树，下方是运行／格式检查／调试／终端面板。*
+*默认主题下的主窗口：编辑器打开着一个 APITestka 动作文件，侧边栏显示导航面板，最左边是活动栏，下方是输出／问题／终端／调试面板。*
+
+![PyBreeze 主窗口，浅色主题](../images/main_window_light.png)
+
+*同一个窗口在 JEditor Light 主题下，侧边栏显示资源管理器。*
 
 ---
 
@@ -538,4 +542,4 @@ MIT — 详见 [LICENSE](../LICENSE)。Copyright (c) 2022 JE-Chen
 
 ---
 
-<sub>截图均取自 Windows 11 上实际的 PyBreeze 组件，使用 `dark_amber` 主题（截图当时的默认主题）；各工具中的示例数据都是经真实代码路径处理的真实输入。</sub>
+<sub>截图均取自 Windows 11 上实际的 PyBreeze 组件，主窗口与菜单使用默认的 JEditor Dark 主题，工具标签页使用截图当时的默认主题 `dark_amber`；各工具中的示例数据都是经真实代码路径处理的真实输入。</sub>

@@ -11,7 +11,11 @@
 
 ![PyBreeze main window](images/main_window.png)
 
-*The main window: an APITestka action file open in the editor, project tree on the left, run/format/debug/terminal panes below.*
+*The main window in the default theme: an APITestka action file open in the editor, the Navigation view in the side bar with the activity bar at its left, and the output, problems, terminal and debug panes below.*
+
+![PyBreeze main window, light theme](images/main_window_light.png)
+
+*The same window in JEditor Light, with the Explorer in the side bar.*
 
 ---
 
@@ -539,4 +543,4 @@ MIT — see [LICENSE](LICENSE). Copyright (c) 2022 JE-Chen
 
 ---
 
-<sub>Screenshots are rendered from the actual PyBreeze widgets on Windows 11 with the `dark_amber` theme, the default when they were taken; the sample data in each tool is real input processed by the real code path.</sub>
+<sub>Screenshots are rendered from the actual PyBreeze widgets on Windows 11: the main window and the menus in the default JEditor Dark theme, the tool tabs in `dark_amber`, the default when those were taken; the sample data in each tool is real input processed by the real code path.</sub>
