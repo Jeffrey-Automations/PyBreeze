@@ -500,9 +500,13 @@ PyBreeze/
 | `je_load_density` | Load and stress testing |
 | `je-mail-thunder` | Email automation |
 | `automation-file` | File operation automation |
-| `test_pioneer` | YAML-based test framework |
-| `paramiko` | SSH client support |
-| `jupyterlab` | Integrated notebook environment |
+| `test_pioneer` (0.1.34 or later) | YAML-based test framework |
+| `paramiko` (5.1.0) | SSH client support |
+| `jupyterlab` (4.6.6), `jupyter_server` (2.21.1) | Integrated notebook environment |
+| `requests` (2.34.2), `urllib3` (2.8.0) | The HTTP requests of the built-in tools and the AI panels |
+| `cryptography` (50.0.2) | Reading SSH private keys |
+| `qt-material` (2.17) | The Material window themes |
+| `gitpython` (3.1.60 or later) | The editor's Git features |
 
 ### Development
 

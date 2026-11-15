@@ -25,21 +25,6 @@
 
 ### 相依套件與發佈
 
-- **#27** 〔已決定：固定版本〕paramiko 沒有固定版本（`requirements.txt`、`pyproject.toml`、`dev.toml`），安裝時可能拿到仍有 CVE-2026-44405（SHA-1 RSA 簽章）的 4.x。
-  程式不論版本都會在每次連線拒絕 SHA-1（`SHA1_ALGORITHMS`，U-20260923-40），SSH 測試在 5.0.0 上通過。要像 PySide6 那樣固定到確切版本。
-- **#49** 〔已決定：固定版本〕jupyterlab 沒有固定版本。JupyterLab 分頁會在它執行的直譯器裡升級有問題的版本（`jupyter_lab_gui/jupyter_lab_thread.py`、
-  `_VULNERABLE_RELEASES`），但安裝 PyBreeze 本身仍可能解析到那些版本；本 repo 的 `.venv` 是 jupyter_server 2.17.0、jupyterlab 4.5.6。
-  上游已修：路徑穿越（CVE-2026-5422，2.18.2）、nbconvert 的儲存型 XSS（CVE-2026-44727，2.20.0）、5xx 時把 Referer 裡的 token 寫進 log（CVE-2026-86049，2.21.0）；
-  jupyterlab 的 CVE-2026-42557（4.5.7）、CVE-2026-73415 與 CVE-2026-73417（4.5.10 / 4.6.2）。固定到 `jupyter_server` 2.21.0 以上、`jupyterlab` 4.5.10 以上的確切版本。
-- **#53** 〔已決定：明確宣告並固定版本〕`requests`、`urllib3` 被直接匯入（`utils/network/public_http.py`、`http_client.py`、`url_validation.py`、三個 AI 面板）卻沒有宣告，
-  版本隨自動化套件而定；`.venv` 的 urllib3 是 2.6.3，低於修掉 CVE-2026-44431 與 CVE-2026-44432 的 2.7.0。`public_http` 還依賴 urllib3 的 `_dns_host` 與 `http.client` 的
-  `_create_connection`（`test_public_http.py` 守著，2.6.3 與 2.8.0 都通過）。`cryptography` 也是直接匯入（`connect_gui/ssh/ssh_key_loader.py`），只經由 paramiko 帶進來，
-  `.venv` 是 46.0.6，低於修掉 CVE-2026-39892 的 46.0.7。`qt_material` 同樣只經由 je-editor 帶進來。四個都要宣告並固定。
-- **#106** 〔已決定：要求 `test_pioneer>=0.1.34`〕`test_pioneer` 沒有固定版本，0.1.34 之前以系統語系的編碼讀 YAML：繁體中文 Windows（cp950）上，TestPioneer「Run YAML」
-  遇到含非 ASCII 字元的檔案（編輯器存成 UTF-8）會以 `UnicodeDecodeError` 結束（`extend/process_executor/test_pioneer/test_pioneer_process_manager.py`）。`.venv` 是 0.1.30。
-- **#109** 〔已決定：兩者都做〕`je-editor>=1.0.27` 允許環境留著 3.1.59 之前的 gitpython（CVE-2026-78676：寫設定時把引號內的值變成有效的 `core.hooksPath`；CVE-2026-78679）。
-  je-editor 1.0.28 只多了 `gitpython>=3.1.59`，而 3.1.59 還有 CVE-2026-87818（diff API 的 `--no-index` 可讀任意路徑），3.1.60 修掉。要把下限改成 `je-editor>=1.0.28`
-  並宣告 `gitpython>=3.1.60`。這一項與 #151 的「提高 je-editor 下限」一起做。
 - **#112** 〔已決定：改用 Nuitka，兩份 auto-py-to-exe 設定可以刪除〕`exe/auto_py_to_exe_setting_linux.json` 與 InstallForge 專案 `exe/automation_ide_setup_config.ifp`
   仍以舊名稱 AutomationIDE 建置，指向已不存在的 `exe/start_automation_editor.py` 與 `exe/je_driver_icon.ico`。擁有者答覆寫的是「Nukita」，這裡當成 Nuitka；動手前先確認。
 - **#121** 〔阻塞〕〔已決定：等正式推出且其他套件支援再說〕Python 3.15 上裝不了 PyBreeze：三個檔案都固定 `PySide6==6.11.2`，它的 wheel 標明 `Requires-Python <3.15`。
@@ -59,6 +44,9 @@
   - 除錯器跑完之後同一個分頁可以再次除錯；設定檔的 `ui_style` 不是字串時不再讓 IDE 起不來；JEditor 自己的自動儲存不再問「檔案被外部修改」
     （`test_file_tree_rename.py` 兩個存檔測試為此擋掉分頁的監看訊號，可以拿掉）。
   - 啟動時不再匯入 AI 聊天面板與 IPython；在這裡重新量一次 `-X importtime`，更新文件裡的啟動時間。
+  - **PySide6 要一起從 6.11.2 改成 6.12.0**：je-editor 從 1.0.32 起釘的是 `PySide6==6.12.0`，而這裡釘 6.11.2，所以 pip 目前只會解析到 1.0.31 以下，
+    拿不到新外框。提高 je-editor 下限的同一個 commit 要把三個檔案（`requirements.txt`、`pyproject.toml`、`dev.toml`）的 PySide6 改成 6.12.0，
+    並確認 frontengine（允許 `<6.13,>=6.11.2`）與 README 的版本說明。
 
 ### 仍要在 JEditor 動手
 

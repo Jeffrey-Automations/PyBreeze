@@ -6,13 +6,30 @@
 # and dev.toml. It does not list pybreeze itself: that would install the published
 # build, so CI would be testing PyPI's code instead of the working tree.
 PySide6==6.11.2
-je-editor>=1.0.27
+# 1.0.28 起要求 gitpython>=3.1.59（CVE-2026-78676、CVE-2026-78679）
+# 1.0.28 is the first to require gitpython>=3.1.59 (CVE-2026-78676, CVE-2026-78679)
+je-editor>=1.0.28
 je_auto_control
 je_web_runner
 je_load_density
 je_api_testka
 je-mail-thunder
 automation-file[all]
-test_pioneer
-paramiko
-jupyterlab
+# 0.1.34 起以 UTF-8 讀 YAML；之前在 cp950 的 Windows 上讀不了含非 ASCII 字元的檔案
+# 0.1.34 reads YAML as UTF-8; before it a file with a non-ASCII character could not be read on a cp950 Windows
+test_pioneer>=0.1.34
+# 以下固定到確切版本：每一個都有低於此版本的已知漏洞，升級時逐一檢視（見 CLAUDE.md 的 Security › Dependencies）
+# Pinned exactly from here on: each has known vulnerabilities below its pin, and an
+# upgrade is reviewed one at a time (see Security › Dependencies in CLAUDE.md)
+paramiko==5.1.0
+jupyterlab==4.6.6
+jupyter_server==2.21.1
+# 程式直接匯入、原本只靠別的套件順便帶進來的四個
+# The four the code imports directly, which used to arrive only through other packages
+requests==2.34.2
+urllib3==2.8.0
+cryptography==50.0.2
+qt-material==2.17
+# 3.1.60 修掉 diff API 的 --no-index 可讀任意路徑（CVE-2026-87818）
+# 3.1.60 fixes the diff API's --no-index reading any path (CVE-2026-87818)
+gitpython>=3.1.60

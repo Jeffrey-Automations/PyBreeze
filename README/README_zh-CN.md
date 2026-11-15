@@ -499,9 +499,13 @@ PyBreeze/
 | `je_load_density` | 负载与压力测试 |
 | `je-mail-thunder` | 邮件自动化 |
 | `automation-file` | 文件操作自动化 |
-| `test_pioneer` | 基于 YAML 的测试框架 |
-| `paramiko` | SSH 客户端支持 |
-| `jupyterlab` | 集成的笔记本环境 |
+| `test_pioneer`（0.1.34 及以上） | 基于 YAML 的测试框架 |
+| `paramiko`（5.1.0） | SSH 客户端支持 |
+| `jupyterlab`（4.6.6）、`jupyter_server`（2.21.1） | 集成的笔记本环境 |
+| `requests`（2.34.2）、`urllib3`（2.8.0） | 内置工具与 AI 面板的 HTTP 请求 |
+| `cryptography`（50.0.2） | 读取 SSH 私钥 |
+| `qt-material`（2.17） | Material 窗口主题 |
+| `gitpython`（3.1.60 及以上） | 编辑器的 Git 功能 |
 
 ### 开发
 
