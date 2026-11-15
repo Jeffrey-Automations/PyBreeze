@@ -5,10 +5,13 @@
 # What PyBreeze needs to run, kept in step with the dependencies in pyproject.toml
 # and dev.toml. It does not list pybreeze itself: that would install the published
 # build, so CI would be testing PyPI's code instead of the working tree.
-PySide6==6.11.2
-# 1.0.28 起要求 gitpython>=3.1.59（CVE-2026-78676、CVE-2026-78679）
-# 1.0.28 is the first to require gitpython>=3.1.59 (CVE-2026-78676, CVE-2026-78679)
-je-editor>=1.0.28
+PySide6==6.12.0
+# 1.0.35 起有視窗外框、Variable Inspector 的變數來源，以及子行程環境的掛點（set_child_environment_provider）；
+# 它釘的是 PySide6==6.12.0，所以上面那一行要跟著它走
+# 1.0.35 is the first with the window's shell, a source of variables for the Variable
+# Inspector and the child environment hook (set_child_environment_provider); it pins
+# PySide6==6.12.0, which the line above has to follow
+je-editor>=1.0.35
 je_auto_control
 je_web_runner
 je_load_density
@@ -29,7 +32,6 @@ jupyter_server==2.21.1
 requests==2.34.2
 urllib3==2.8.0
 cryptography==50.0.2
-qt-material==2.17
 # 3.1.60 修掉 diff API 的 --no-index 可讀任意路徑（CVE-2026-87818）
 # 3.1.60 fixes the diff API's --no-index reading any path (CVE-2026-87818)
 gitpython>=3.1.60

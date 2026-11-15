@@ -78,7 +78,7 @@ Each module gets the same menu shape: **Run** (single script, batch directory, w
 ### IDE core
 
 - **Automation keyword sets** — the `AT_*` / GUI / Web / Load keyword sets are registered for `.json`, and TestPioneer's schema for `.yml` and `.yaml`, on top of JEditor's language support. JEditor does not colour them yet: it highlights those files with its own rules for the suffix, which leave registered keywords out
-- **Code editor** — built on [JEditor](https://github.com/Integration-Automation/JEDITOR): tabs, project tree, format checker, debugger, terminal and a git client pane
+- **Code editor** — built on [JEditor](https://github.com/Integration-Automation/JEDITOR): tabs, project tree, format checker, debugger, variable inspector (the IPython console's variables, or a paused debugger's locals), terminal and a git client pane
 - **Navigation panel** — a view of the side bar, with its own icon in the activity bar, lists what the menus hold as one tree (Automation, Tools, Settings): type in its box to find a tool or a command by name, then press Enter or double-click to open it. It is the view shown on a first start; the activity bar or **View ▸ Navigation** switches to it, and the view left open is the one shown at the next start
 - **Fits a small screen** — a tool tab never asks for more than 60 font heights of width: a row of buttons too long for the tab wraps onto the next line instead of pushing the window wider than the display
 - **Script execution** — single or batch, each run in a window of its own with a Stop button (Run ▸ Stop All Program stops them all), which asks whether to stop the run when it is closed while the run goes on; action files are passed by path, and a script from the tab in front that is too long for a Windows command line (~32 KB) goes through a temporary file
@@ -387,7 +387,7 @@ pip install -r requirements.txt
 
 - **Python**: 3.11 – 3.14
 - **OS**: Windows, macOS, Linux
-- **GUI**: PySide6 6.11.2 (installed automatically)
+- **GUI**: PySide6 6.12.0 (installed automatically)
 
 ---
 
@@ -471,7 +471,7 @@ PyBreeze/
 │   │   └── syntax/                    # Automation keyword definitions
 │   └── utils/                         # curl/HAR parsing, headers, JWT, hashing,
 │                                      # URL validation, logging, exceptions, …
-├── exe/                               # Standalone launcher & build configs
+├── exe/                               # Standalone launcher & the Nuitka build script
 ├── docs/                              # Sphinx documentation source; updates/ is the change log
 ├── test/                              # Unit tests (test_utils) + startup tests
 ├── scripts/                           # Release helper for the dev channel (dev_release.py)
@@ -493,8 +493,8 @@ PyBreeze/
 
 | Package | Purpose |
 |---|---|
-| `PySide6` (6.11.2) | GUI framework (Qt for Python) |
-| `je-editor` | Base code editor engine |
+| `PySide6` (6.12.0) | GUI framework (Qt for Python) |
+| `je-editor` (1.0.35 or later) | Base code editor engine, the window and its themes |
 | `je_api_testka` | API testing automation |
 | `je_auto_control` | GUI/desktop automation |
 | `je_web_runner` | Web browser automation |
@@ -506,12 +506,11 @@ PyBreeze/
 | `jupyterlab` (4.6.6), `jupyter_server` (2.21.1) | Integrated notebook environment |
 | `requests` (2.34.2), `urllib3` (2.8.0) | The HTTP requests of the built-in tools and the AI panels |
 | `cryptography` (50.0.2) | Reading SSH private keys |
-| `qt-material` (2.17) | The Material window themes |
 | `gitpython` (3.1.60 or later) | The editor's Git features |
 
 ### Development
 
-`build`, `twine`, `sphinx`, `sphinx-rtd-theme`, `auto-py-to-exe`, `pytest`, `pytest-cov`, `hypothesis`, `ruff`
+`build`, `twine`, `sphinx`, `sphinx-rtd-theme`, `nuitka`, `pytest`, `pytest-cov`, `hypothesis`, `ruff`
 
 ---
 

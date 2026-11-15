@@ -4,25 +4,20 @@ Typing in its box keeps the lines that hold the text, and Enter or a double
 click on a line does what the menu entry it stands for does. What it lists is
 decided by ``navigation_model``.
 
-``NavigationPanel`` is the panel itself. Where JEditor's window has a shell it
-is a view of the side bar, with an icon in the activity bar; ``NavigationDock``
-holds one in a dock at the left of the main window, for a JEditor from before
-its window had a shell.
+``NavigationPanel`` is a view of the side bar of JEditor's window, with an icon
+in the activity bar (``PyBreezeMainWindow._add_navigation``).
 """
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QDockWidget, QLineEdit, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QLineEdit, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget
 from je_editor import language_wrapper
 
 from pybreeze.pybreeze_ui.design.panels import StatusLine
 from pybreeze.pybreeze_ui.design.tokens import Space, State, TextRole, apply_spacing, em, text_font
 from pybreeze.pybreeze_ui.navigation.navigation_model import CATEGORIES, NavigationEntry
 from pybreeze.utils.logging.logger import pybreeze_logger
-from pybreeze.utils.ui_state import remember
 
-# The name the dock's visibility is remembered under (utils/ui_state.py)
-VISIBLE_STATE = "navigation_visible"
 # The panel's ID as a view of JEditor's shell, which its saved layout names
 NAVIGATION_VIEW = "pybreeze_navigation"
 # The least width the panel asks for, in ems: room for a tool's name
@@ -92,7 +87,7 @@ class NavigationPanel(QWidget):
             entry.activate()
         except RuntimeError as error:
             # The menu action it stood for is gone (a menu rebuilt since the panel was filled)
-            pybreeze_logger.error("navigation_dock.py entry %r could not be activated: %r", entry.text, error)
+            pybreeze_logger.error("navigation_panel.py entry %r could not be activated: %r", entry.text, error)
 
     def apply_filter(self, text: str) -> None:
         """Keep the lines that hold *text*, whatever its case, with the lines they are under.
@@ -124,33 +119,3 @@ class NavigationPanel(QWidget):
         if wanted and any(kept):
             item.setExpanded(True)
         return shown
-
-
-
-class NavigationDock(QDockWidget):
-    """The navigation panel in a dock at the left of the main window.
-
-    :param navigation: what each category holds, by the category's key
-        (``navigation_model.build_navigation``)
-    :param parent: the main window
-    """
-
-    def __init__(self, navigation: dict[str, list[NavigationEntry]], parent: QWidget | None = None) -> None:
-        super().__init__(language_wrapper.language_word_dict.get("navigation_dock_title"), parent)
-        self.setObjectName("pybreeze_navigation")
-        self.panel = NavigationPanel(navigation)
-        # The panel's parts under the names the dock always had them
-        self.filter_edit = self.panel.filter_edit
-        self.tree = self.panel.tree
-        self.status = self.panel.status
-        self.setWidget(self.panel)
-
-    def apply_filter(self, text: str) -> None:
-        """Keep the lines that hold *text* (``NavigationPanel.apply_filter``)."""
-        self.panel.apply_filter(text)
-
-    def closeEvent(self, event) -> None:
-        # Closed with its own button: stay closed next time. The Dock menu's
-        # entry remembers the same when it is used (main_ui.py).
-        remember(VISIBLE_STATE, False)
-        super().closeEvent(event)

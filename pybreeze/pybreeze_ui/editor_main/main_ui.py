@@ -14,13 +14,18 @@ from pybreeze.utils.subprocess_util import IDE_ONLY, child_environment
 # is kept, for both.
 environ["LOCUST_SKIP_MONKEY_PATCH"] = environ.get("LOCUST_SKIP_MONKEY_PATCH") or IDE_ONLY
 
-from PySide6.QtCore import QTimer, QCoreApplication, Qt
+from PySide6.QtCore import QTimer, QCoreApplication
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QWidget
-from je_editor import EditorMain, EditorWidget, JEditorExecException, language_wrapper
+from je_editor import (
+    EditorMain,
+    EditorWidget,
+    JEditorExecException,
+    language_wrapper,
+    set_child_environment_provider,
+)
 from je_editor.pyside_ui.main_ui.dock.destroy_dock import DestroyDock
 from je_editor.pyside_ui.main_ui.save_settings.user_setting_file import user_setting_dict
-from qt_material import apply_stylesheet
 
 from pybreeze.extend.language_server.launch import ACTION_SCRIPT_SUFFIX, offer_to_jeditor
 from pybreeze.extend.process_executor.python_task_process_manager import default_interpreter
@@ -30,18 +35,12 @@ from pybreeze.pybreeze_ui.closing import AskingDock, may_close
 from pybreeze.pybreeze_ui.editor_main.file_tree_context_menu import setup_file_tree_context_menu
 from pybreeze.pybreeze_ui.gui_thread_gc import collect_garbage_on_gui_thread
 from pybreeze.pybreeze_ui.menu.build_menubar import add_menu_to_menubar
-from pybreeze.pybreeze_ui.navigation.navigation_dock import (
-    NAVIGATION_VIEW,
-    VISIBLE_STATE,
-    NavigationDock,
-    NavigationPanel,
-)
+from pybreeze.pybreeze_ui.navigation.navigation_panel import NAVIGATION_VIEW, NavigationPanel
 from pybreeze.pybreeze_ui.navigation.navigation_model import build_navigation
 from pybreeze.pybreeze_ui.show_code_window.code_window import CodeWindow
 from pybreeze.pybreeze_ui.syntax.syntax_extend import \
     syntax_extend_package
 from pybreeze.utils.logging.logger import pybreeze_logger
-from pybreeze.utils.ui_state import read_ui_state, remember
 
 
 EDITOR_EXTEND_TAB: dict[str, type[QWidget]] = {
@@ -50,31 +49,6 @@ EDITOR_EXTEND_TAB: dict[str, type[QWidget]] = {
 # Shipped beside this module (package data): it was read from the working
 # folder, which a started IDE never has, and the window had no icon
 _ICON_PATH = Path(__file__).with_name("pybreeze_icon.ico")
-
-
-def give_jeditor_the_child_environment() -> bool:
-    """Have JEditor start the user's programs with ``child_environment()``.
-
-    JEditor's Run Program, Run Debugger, shell, terminal and test panel start
-    processes of their own, with the IDE's environment as it was. A variable
-    the IDE set for itself alone went along: with ``LOCUST_SKIP_MONKEY_PATCH``
-    in it, a locust script run from the editor ran one user at a time.
-
-    :return: ``False`` with a JEditor that has no such hook yet (1.0.34 and
-        earlier), where those runs keep the IDE's environment
-    """
-    try:
-        from je_editor import set_child_environment_provider
-    except ImportError:
-        pybreeze_logger.info("main_ui.py this JEditor cannot be given the environment of the programs it starts")
-        return False
-    set_child_environment_provider(child_environment)
-    return True
-
-
-def _remember_navigation_visible(visible: bool) -> None:
-    """Keep for the next start whether the navigation panel is shown (its Dock menu entry was used)."""
-    remember(VISIBLE_STATE, visible)
 
 
 def _close_guarded(widget: QWidget, *steps) -> None:
@@ -120,8 +94,11 @@ class PyBreezeMainWindow(EditorMain):
         # dictionary it reads from as a merged copy, so strings added afterwards are
         # missing from it, and a menu given a None title crashes Qt.
         update_language_dict()
-        # Before anything can be run from the window
-        give_jeditor_the_child_environment()
+        # JEditor's Run Program, Run Debugger, shell, terminal and test panel start
+        # processes of their own; they get child_environment() too, so that a
+        # variable the IDE set for itself alone (LOCUST_SKIP_MONKEY_PATCH) stays
+        # out of the user's programs. Before anything can be run from the window
+        set_child_environment_provider(child_environment)
         super().__init__(debug_mode, show_system_tray_ray, extend=True)
         show_only_warnings_in_code_result()
         # Note: EditorMain.__init__ already calls load_external_plugins()
@@ -179,23 +156,17 @@ class PyBreezeMainWindow(EditorMain):
             close_timer.start()
 
     def _add_navigation(self) -> None:
-        """Add the navigation panel: a view of the side bar where the window has a shell.
+        """Add the navigation panel as a view of the side bar.
 
         Built after the menus: each of its lines is one of their actions.
         JEditor's shell gives it an icon in the activity bar and an entry in
         the View menu, and remembers with its own layout whether it is the
         view shown. JEditor restored that layout while it was building the
         window, before this view existed, so it is restored again here; on a
-        first start, with nothing saved, the panel is the view shown. A JEditor
-        from before its window had a shell gets the panel in a dock instead.
+        first start, with nothing saved, the panel is the view shown.
         """
-        navigation = build_navigation(self)
-        workbench = getattr(self, "workbench", None)
-        if workbench is None:
-            self._add_navigation_dock(navigation)
-            return
-        self.navigation_dock = None
-        self.navigation_panel = NavigationPanel(navigation)
+        workbench = self.workbench
+        self.navigation_panel = NavigationPanel(build_navigation(self))
         workbench.add_view(
             NAVIGATION_VIEW, "side", widget=self.navigation_panel,
             title_key="navigation_dock_title", icon="navigation")
@@ -203,23 +174,6 @@ class PyBreezeMainWindow(EditorMain):
             workbench.restore_layout()
         else:
             workbench.show_view(NAVIGATION_VIEW)
-
-    def _add_navigation_dock(self, navigation: dict) -> None:
-        """Add the navigation panel in a dock at the left, shown unless the user closed it last time.
-
-        Its entry in the Dock menu shows and hides it. Whether it is shown is
-        remembered only when the user says so (that entry, or the panel's own
-        close button): the entry's checked state also changes as the IDE closes.
-
-        :param navigation: what each category holds (``build_navigation``)
-        """
-        self.navigation_dock = NavigationDock(navigation, self)
-        self.navigation_panel = self.navigation_dock.panel
-        self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.navigation_dock)
-        self.navigation_dock.setVisible(read_ui_state().get(VISIBLE_STATE) is not False)
-        toggle = self.navigation_dock.toggleViewAction()
-        toggle.triggered.connect(_remember_navigation_visible)
-        self.dock_menu.addAction(toggle)
 
     def _offer_language_server(self) -> None:
         """Have the editors ask PyBreeze's language server about JSON files.
@@ -394,7 +348,7 @@ def open_main_window(app: QApplication, debug_mode: bool = False, theme: str | N
     """
     window = PyBreezeMainWindow(debug_mode=debug_mode, **kwargs)
     if theme is not None:
-        _apply_given_theme(app, window, theme)
+        _apply_given_theme(window, theme)
     else:
         # startup_setting() sets the window's font style sheet before the
         # application's theme; set again after it, as a second run of it did,
@@ -404,7 +358,7 @@ def open_main_window(app: QApplication, debug_mode: bool = False, theme: str | N
     return window
 
 
-def _apply_given_theme(app: QApplication, window: PyBreezeMainWindow, theme: str) -> None:
+def _apply_given_theme(window: PyBreezeMainWindow, theme: str) -> None:
     """Make *theme* the picked one and apply the settings with it (``startup_setting()``)."""
     user_setting_dict["ui_style"] = theme
     try:
@@ -413,9 +367,5 @@ def _apply_given_theme(app: QApplication, window: PyBreezeMainWindow, theme: str
     # a bad one is logged, and the theme is still applied.
     except (OSError, ValueError, TypeError, KeyError, RuntimeError) as error:
         pybreeze_logger.error("Startup setting error: %r", error)
-        apply_style = getattr(window, "apply_style", None)
-        if callable(apply_style):
-            # JEditor applies its own themes and qt_material's alike, with the editor's colours
-            apply_style(theme)
-        else:
-            apply_stylesheet(app, theme=theme)
+        # JEditor applies its own themes and qt_material's alike, with the editor's colours
+        window.apply_style(theme)

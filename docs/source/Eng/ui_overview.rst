@@ -12,13 +12,6 @@ with the Navigation view in the side bar.
 
 The same window in JEditor Light, with the Explorer in the side bar.
 
-.. note::
-
-   This page describes the window with a JEditor that has the shell (the activity bar and
-   the side bar). With an earlier JEditor, 1.0.27 for instance, each editor tab carries
-   its own file tree and output panel, the navigation is a dock at the left that
-   **Dock > Navigation** shows and hides, and the default theme is ``dark_amber.xml``.
-
 Main Window Layout
 ------------------
 
