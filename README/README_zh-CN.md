@@ -78,7 +78,7 @@ PyBreeze 开箱即用，涵盖自动化测试的完整范围：
 ### IDE 核心
 
 - **自动化关键字集** — 在 JEditor 的语言支持之上，为 `.json` 注册了 `AT_*` / GUI / Web / Load 关键字集，为 `.yml` 和 `.yaml` 注册了 TestPioneer 的结构定义。JEditor 目前还不会为它们着色：它用自己针对这些扩展名的规则高亮，不会用到注册的关键字
-- **代码编辑器** — 基于 [JEditor](https://github.com/Integration-Automation/JEDITOR) 构建：标签页、项目树、格式检查、调试器、终端以及 git 客户端面板
+- **代码编辑器** — 基于 [JEditor](https://github.com/Integration-Automation/JEDITOR) 构建：标签页、项目树、格式检查、调试器、变量查看器（IPython 控制台的变量，或暂停中的调试器的局部变量）、终端以及 git 客户端面板
 - **导航面板** — 侧边栏的一个面板，在活动栏有自己的图标，把菜单里的功能列成一棵树（自动化、工具、设置）：在搜索框输入名称即可找到工具或命令，按 Enter 或双击即可打开。第一次启动时显示的就是它；从活动栏或 **视图 ▸ Navigation** 切换到它，退出时打开着哪个面板，下次启动就显示哪个
 - **小屏幕也放得下** — 工具标签页需要的宽度不会超过 60 个字高：一行按钮放不下时会换到下一行，而不是把窗口撑得比屏幕还宽
 - **脚本执行** — 单个或批量运行，每次运行都有自己的窗口和 Stop 按钮（Run ▸ Stop All Program 会全部停止），运行中关闭窗口时会先询问是否停止；动作文件以路径传入，而前台标签页中的脚本若超出 Windows 命令行的长度上限（约 32 KB），会改经临时文件传递
@@ -386,7 +386,7 @@ pip install -r requirements.txt
 
 - **Python**：3.11 – 3.14
 - **操作系统**：Windows、macOS、Linux
-- **GUI**：PySide6 6.11.2（自动安装）
+- **GUI**：PySide6 6.12.0（自动安装）
 
 ---
 
@@ -492,8 +492,8 @@ PyBreeze/
 
 | 包 | 用途 |
 |---|---|
-| `PySide6` (6.11.2) | GUI 框架（Qt for Python） |
-| `je-editor` | 基础代码编辑器引擎 |
+| `PySide6` (6.12.0) | GUI 框架（Qt for Python） |
+| `je-editor`（1.0.35 以上） | 基础代码编辑器引擎、窗口与它的主题 |
 | `je_api_testka` | API 测试自动化 |
 | `je_auto_control` | GUI／桌面自动化 |
 | `je_web_runner` | Web 浏览器自动化 |
@@ -505,12 +505,11 @@ PyBreeze/
 | `jupyterlab`（4.6.6）、`jupyter_server`（2.21.1） | 集成的笔记本环境 |
 | `requests`（2.34.2）、`urllib3`（2.8.0） | 内置工具与 AI 面板的 HTTP 请求 |
 | `cryptography`（50.0.2） | 读取 SSH 私钥 |
-| `qt-material`（2.17） | Material 窗口主题 |
 | `gitpython`（3.1.60 及以上） | 编辑器的 Git 功能 |
 
 ### 开发
 
-`build`、`twine`、`sphinx`、`sphinx-rtd-theme`、`auto-py-to-exe`、`pytest`、`pytest-cov`、`hypothesis`、`ruff`
+`build`、`twine`、`sphinx`、`sphinx-rtd-theme`、`nuitka`、`pytest`、`pytest-cov`、`hypothesis`、`ruff`
 
 ---
 

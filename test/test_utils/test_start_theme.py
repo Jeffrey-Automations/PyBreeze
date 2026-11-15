@@ -6,13 +6,7 @@ one is picked from UI Style) after the window is shown, over the one
 """
 from __future__ import annotations
 
-import importlib.util
-
-import pytest
 from test_utils.started_window import run_started_window
-
-# JEditor's own themes came with its window's shell; before that every theme was qt_material's
-JEDITOR_HAS_ITS_OWN_THEMES = importlib.util.find_spec("je_editor.pyside_ui.main_ui.shell") is not None
 
 _OPEN = """
 import os
@@ -48,13 +42,10 @@ def test_without_one_the_theme_picked_before_is_shown(tmp_path):
 def test_without_either_the_default_is_shown(tmp_path):
     seen = _start(tmp_path)
 
-    # JEditor's default: its own dark theme where it has one, which qt_material
-    # is never asked for, and qt_material's dark_amber before that
-    expected = (None, "jeditor_dark") if JEDITOR_HAS_ITS_OWN_THEMES else ("dark_amber.xml", "dark_amber.xml")
-    assert (seen["shown"], seen["saved"]) == expected
+    # JEditor's default is its own dark theme, which qt_material is never asked for
+    assert (seen["shown"], seen["saved"]) == (None, "jeditor_dark")
 
 
-@pytest.mark.skipif(not JEDITOR_HAS_ITS_OWN_THEMES, reason="this JEditor has no themes of its own")
 def test_a_jeditor_theme_given_at_launch_is_shown_without_qt_material(tmp_path):
     seen = _start(tmp_path, theme="jeditor_light", saved="dark_teal.xml")
 
@@ -113,36 +104,14 @@ def test_the_window_looks_the_same_with_the_theme_given_or_saved(tmp_path):
 
 def test_settings_that_fail_to_apply_still_leave_the_theme_given(monkeypatch):
     # The saved settings (and the files they reopen) can be anything: a bad
-    # one used to stop the start before the theme was applied
+    # one used to stop the start before the theme was applied. The window
+    # applies the theme itself, JEditor's own or qt_material's alike
     from pybreeze.pybreeze_ui.editor_main import main_ui
 
-    applied: list = []
+    by_the_window: list = []
     logged: list = []
     monkeypatch.setitem(main_ui.user_setting_dict, "ui_style", "dark_amber.xml")
-    monkeypatch.setattr(main_ui, "apply_stylesheet", lambda app, theme: applied.append((app, theme)))
     monkeypatch.setattr(main_ui.pybreeze_logger, "error", lambda *args: logged.append(args))
-
-    class Window:
-        def startup_setting(self) -> None:
-            raise KeyError("font_size")
-
-    app = object()
-    main_ui._apply_given_theme(app, Window(), "dark_teal.xml")
-
-    assert main_ui.user_setting_dict["ui_style"] == "dark_teal.xml"
-    assert applied == [(app, "dark_teal.xml")]
-    assert logged
-
-
-def test_a_window_that_applies_styles_itself_is_asked_to(monkeypatch):
-    # JEditor's own themes are not qt_material's to apply: the window applies either kind
-    from pybreeze.pybreeze_ui.editor_main import main_ui
-
-    by_qt_material: list = []
-    by_the_window: list = []
-    monkeypatch.setitem(main_ui.user_setting_dict, "ui_style", "dark_amber.xml")
-    monkeypatch.setattr(main_ui, "apply_stylesheet", lambda app, theme: by_qt_material.append(theme))
-    monkeypatch.setattr(main_ui.pybreeze_logger, "error", lambda *args: None)
 
     class Window:
         def startup_setting(self) -> None:
@@ -151,7 +120,8 @@ def test_a_window_that_applies_styles_itself_is_asked_to(monkeypatch):
         def apply_style(self, theme: str) -> None:
             by_the_window.append(theme)
 
-    main_ui._apply_given_theme(object(), Window(), "jeditor_light")
+    main_ui._apply_given_theme(Window(), "jeditor_light")
 
+    assert main_ui.user_setting_dict["ui_style"] == "jeditor_light"
     assert by_the_window == ["jeditor_light"]
-    assert by_qt_material == []
+    assert logged

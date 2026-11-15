@@ -24,7 +24,7 @@ their output reaches the UI through Queue + QTimer.
 | Path | Responsibility |
 | --- | --- |
 | `pybreeze/__init__.py` | Facade: `start_editor`, `PyBreezeMainWindow`, `EDITOR_EXTEND_TAB`, re-exported JEditor plugin functions |
-| `pybreeze/__main__.py`, `exe/start_pybreeze.py` | Launch scripts (module run, executable build) |
+| `pybreeze/__main__.py`, `exe/start_pybreeze.py`, `exe/build_nuitka.py` | Launch scripts (module run, executable build) and the Nuitka command that builds the executable |
 | `pybreeze/pybreeze_ui/editor_main/` | `PyBreezeMainWindow(EditorMain)`, `start_editor()`, file-tree context menu |
 | `pybreeze/pybreeze_ui/menu/` | Menu builders; `build_menubar.py` is the single entry. Holds `automation_menu/` (factory, per-package menus, TestPioneer, prthinker), `install_menu/`, `tools/tools_menu.py`, `plugin_menu/`, `extend_jeditor_tab_menu/` |
 | `pybreeze/pybreeze_ui/tools_gui/` | Thin tool tabs (cURL/HAR import, JWT, regex, diff, headers, …) backed by `pybreeze/utils/`; the JSON editor (`json_editor_gui.py`: a tree view, `json_tree_panel.py`, and a text view over one `JsonDocument`, with one undo history) |
@@ -33,7 +33,7 @@ their output reaches the UI through Queue + QTimer.
 | `pybreeze/pybreeze_ui/connect_gui/` | `ssh/` terminal + SFTP tree; `url/` HTTP code-review client |
 | `pybreeze/pybreeze_ui/jupyter_lab_gui/`, `show_code_window/`, `syntax/` | JupyterLab tab; `CodeWindow` subprocess output window; automation keyword highlighting |
 | `pybreeze/pybreeze_ui/design/` | The design system PyBreeze's own panels are built from: `tokens.py` (gaps, text and icon sizes in ems, a state's theme colour), `flow_layout.py` (a row that wraps), `panels.py` (`Panel`, `StatusLine`, `wrapping_row`) |
-| `pybreeze/pybreeze_ui/navigation/` | The navigation panel: `navigation_model.py` reads the menus and the tool table into five categories, `navigation_dock.py` shows them as a searchable tree (`NavigationPanel`): a view of the side bar of JEditor's shell with an icon in its activity bar, or, with a JEditor whose window has no shell, in a dock at the left (`NavigationDock`) |
+| `pybreeze/pybreeze_ui/navigation/` | The navigation panel: `navigation_model.py` reads the menus and the tool table into five categories, `navigation_panel.py` shows them as a searchable tree (`NavigationPanel`), a view of the side bar of JEditor's shell with an icon in its activity bar |
 | `pybreeze/pybreeze_ui/mcp_gui/` | The MCP client tab: `mcp_client_gui.py` (connecting, asking before a call, cancelling, reading a changed list again, the session's log), `mcp_server_panel.py` (the user's servers and the project's), `mcp_profile_dialog.py`, `mcp_panels.py` (tools, resources, prompts, calls), `mcp_worker.py` (one blocking call on a `KeptThread`) |
 | `pybreeze/pybreeze_ui/report_gui/` | The report viewer tab (`report_viewer_gui.py`): several runs as one tree, a filter bar, the selected result's details, output, attachments and own record, and export |
 | `pybreeze/pybreeze_ui/local_endpoint.py` | `LocalEndpointGate`: asks before an AI panel sends to an address on this machine or the private network, and remembers the answer for the panel's life |
@@ -86,8 +86,7 @@ The layers are presentation (`pybreeze_ui/`), then execution (`extend/`), then f
 - **Plugin API (re-exported)**: `load_external_plugins`, `register_programming_language`,
   `register_natural_language`.
 - **Persisted state**: `~/.pybreeze/` via `utils/app_dirs.pybreeze_data_dir()` (SSH known hosts,
-  prthinker settings, edited prompts, review history, whether the navigation panel is shown (`ui_state.json`,
-  `utils/ui_state.py`), and `logs/PyBreeze.log`, which
+  prthinker settings, edited prompts, review history, and `logs/PyBreeze.log`, which
   `$PYBREEZE_LOG_FILE` can move). The editor settings inherited from JEditor
   stay in `.jeditor/` under the working directory.
 - **PyPI packages**: `pybreeze` (stable) and `pybreeze_dev` (dev channel), the same import package
@@ -122,7 +121,7 @@ Before PySide6 is imported, `main_ui.py` sets `LOCUST_SKIP_MONKEY_PATCH` (to `ID
 set it) to keep locust's gevent patching away from Qt. The processes the IDE starts get
 `subprocess_util.child_environment()`, which leaves it out: a load test needs the patching. The processes
 JEditor starts itself (Run Program, Run Debugger, shell, terminal, test panel) get the same function
-through `je_editor.set_child_environment_provider`, a hook JEditor has after 1.0.34 (§6).
+through `je_editor.set_child_environment_provider` (§6).
 
 **Run an automation script**
 
@@ -243,7 +242,7 @@ MCP Client → Calls → Open in Report Viewer → ReportViewerGUI.show_report(M
 ## 6. Cross-project boundaries
 
 - **JEditor (upstream)**: PyBreeze registers `child_environment` with
-  `je_editor.set_child_environment_provider` when JEditor has it (`main_ui.give_jeditor_the_child_environment()`),
+  `je_editor.set_child_environment_provider` (`PyBreezeMainWindow.__init__`), adds its navigation with `workbench.add_view(...)`, applies a theme given at launch with `EditorMain.apply_style(...)`,
   and assigns `python_compiler` through a property of its own, relying on JEditor setting that name as a
   plain attribute. `PyBreezeMainWindow` subclasses `je_editor.EditorMain` in extend mode
   and calls `super().__init__(debug_mode, show_system_tray_ray, extend=True)`. `pybreeze/__init__.py`
@@ -352,9 +351,9 @@ MCP Client → Calls → Open in Report Viewer → ReportViewerGUI.show_report(M
   `FileRunnerProcess`. PyBreeze reads one key JEditor's plugin guide does not define: `"encoding"`, the
   encoding the program's output is in (`"locale"` for the machine's own), documented in `PLUGIN_GUIDE.md`.
 - **PySide6 pin**: it must match JEditor and FrontEngine. PyBreeze pins it in `pyproject.toml`,
-  `dev.toml` and `requirements.txt`. All three pin 6.11.2, the exact pin of the published je_editor
-  1.0.26 and frontengine 1.0.78 (both `==`, so PyBreeze cannot move ahead of them without becoming
-  uninstallable). PyBreeze moves when the published je_editor does (workspace X-1).
+  `dev.toml` and `requirements.txt`. All three pin 6.12.0, the exact pin of the published je_editor
+  1.0.35 (`==`, so PyBreeze cannot be on another version without becoming uninstallable);
+  frontengine allows `>=6.11.2,<6.13`. PyBreeze moves when the published je_editor does (workspace X-1).
 
 ## 7. Design constraints
 

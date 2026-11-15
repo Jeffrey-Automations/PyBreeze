@@ -19,11 +19,13 @@ File 選單
    * - **New File**
      - 詢問名稱與位置，在那裡建立空檔案（不會開啟它）。
    * - **Open File**
-     - 把檔案開進前景的編輯分頁，取代它原本顯示的內容，不會詢問那裡未存的文字（見 :doc:`ui_overview`）。
+     - 把檔案開在它自己的編輯分頁（空白且沒改過的分頁會直接拿來用），所以不會蓋掉前景分頁裡還沒存的內容（見 :doc:`ui_overview`）。
    * - **Open Folder**
      - 把一個資料夾設為工作資料夾：檔案樹顯示它，並載入它的設定（見 :doc:`getting_started`）。
    * - **Save File**
-     - 開啟從工作資料夾開始的 **Save As** 對話框，把分頁寫到選定的位置。
+     - 把分頁寫回它的檔案。還沒有檔案的分頁會先詢問要存到哪裡，和 **Save As** 一樣。
+   * - **Save As...**
+     - 開啟從工作資料夾開始的對話框，把分頁寫到選定的位置；之後這個分頁就是那個檔案。
    * - **Recent Files**
      - 最近開啟的檔案，點選後在新分頁開啟。清單在啟動時重建。
    * - **Font** / **Font Size**
@@ -45,7 +47,7 @@ Run 選單
    * - 選單項目
      - 說明
    * - **Run Program > Run Program**
-     - 開啟 **Save As** 對話框寫入分頁，再以 Python 執行檔案；輸出到分頁的 **Code result**。
+     - 把分頁存回它的檔案（沒有檔案時才詢問位置），再以 Python 執行檔案；輸出到 **Code result**。
        每個分頁一次只能執行一個程式。
    * - **Run Program > Show program input**
      - 一個小視窗，輸入的文字會送到執行中程式的標準輸入。
@@ -54,8 +56,8 @@ Run 選單
    * - **Run On Shell > Show shell input**
      - 同樣的輸入視窗，給 Shell 用。
    * - **Debugger > Run Debugger**
-     - 開啟 **Save As** 對話框後，以 ``pdb`` 執行檔案，並帶入編輯器邊欄設定的中斷點；輸出在 **Debugger**
-       分頁，輸入視窗會自動開啟。JEditor 1.0.27 中每個編輯分頁只能執行一次：要再除錯，請在另一個分頁開啟該檔案。
+     - 把分頁存回它的檔案後，以 ``pdb`` 執行檔案，並帶入編輯器邊欄設定的中斷點；輸出在 **Debugger**
+       分頁，輸入視窗會自動開啟。
    * - **Debugger > Show debugger input**
      - 再次開啟除錯器的輸入視窗。
    * - **Clean Result**
@@ -149,7 +151,7 @@ Tab 與 Dock 選單
 - **Console Widget** -- 互動式 Shell（``cmd``、PowerShell、``bash`` 或 ``sh``）
 - **Toggle Split View**\ （同一份文件顯示兩次）與 **Toggle Minimap**，作用在前景分頁
 - **Snippet Editor** -- ``.jeditor/snippets.json`` 中的程式碼片段
-- **Tools Tab** -- IPython（Jupyter，在 IDE 自己的 Python 中）、變數檢視器（顯示 IPython 主控台的變數，可以編輯，或暫停中的除錯器的區域變數；JEditor 1.0.34 與更早的版本中是空的，因為沒有東西提供變數給它）、FrontEngine、ChatUI、TODO 面板、
+- **Tools Tab** -- IPython（Jupyter，在 IDE 自己的 Python 中）、變數檢視器（顯示 IPython 主控台的變數，可以編輯，或暫停中的除錯器的區域變數）、FrontEngine、ChatUI、TODO 面板、
   目前 Python 檔的大綱，以及 JupyterLab（見 :doc:`jupyter_lab`）
 - **Git Tab** -- Git 用戶端、分支樹檢視器、程式碼差異檢視器，以及目前檔案與 ``HEAD`` 或暫存版本的差異
 - **Dock > Tools** 另有 **Problems**\ （``ruff`` 找到的問題）與 **Tests**\ （在工作資料夾執行 ``pytest``）

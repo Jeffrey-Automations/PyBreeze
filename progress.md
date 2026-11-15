@@ -7,8 +7,14 @@
 
 ## 實體驗收
 
-- **#153** 打包版的語言服務還沒有在真正的打包執行檔上跑過（U-20261115-09）。打包版現在以 `PyBreeze.exe --action-language-server` 啟動自己當語言伺服器，
-  從原始碼以同一個進入點驗過（`test_language_server_launch.py`），但沒有實際建出執行檔。要用 `exe/` 的設定建一次，開一個動作腳本（`.json`）確認：
+- **#154** PySide6 6.12.0 與新版 je-editor 的組合只在 CI（offscreen）跑過測試，本機開發環境仍是 6.11.2（這台機器下載大型 wheel 會卡住）。
+  要在實機上以 `pip install -r requirements.txt` 裝出 6.12.0，啟動 IDE 確認視窗、JupyterLab 分頁（QtWebEngine）與內嵌瀏覽器都正常；
+  並量一次 `python -X importtime -c "import pybreeze.pybreeze_ui.editor_main.main_ui"`，把啟動時間補進 `architecture_explore.md`
+  （JEditor 已不在啟動時匯入 AI 聊天面板與 IPython）。
+- **#153** 打包還沒有實際建出執行檔驗過。打包工具已改成 Nuitka（`exe/build_nuitka.py`，U-20261116-02），這個腳本是照 Nuitka 的選項寫的，沒有跑過；
+  打包版以 `PyBreeze --action-language-server` 啟動自己當語言伺服器（U-20261115-09），從原始碼以同一個進入點驗過（`test_language_server_launch.py`）。
+  程式以 `sys.frozen` 判斷是不是打包版（語言伺服器、regex 測試器的 worker、預設直譯器、關鍵字探測），要確認 Nuitka 的 standalone 建置有設定它。
+  `exe/automation_ide_setup_config.ifp`（InstallForge）仍指向舊名稱 AutomationIDE 與已不存在的檔案，建出執行檔後一併重做或刪除。要建一次，開一個動作腳本（`.json`）確認：
   有診斷與關鍵字補全、沒有多開一個 IDE 視窗、關閉 IDE 後沒有留下 `PyBreeze.exe` 行程；在沒有任何 Python 的機器上，`.json` 檔仍會被告知是不是 JSON。
 - **#152** 新版面還沒有在真正的螢幕上看過。導覽面板改成側邊欄的面板（U-20261115-01）之後，所有畫面都是以 offscreen 渲染擷取的。要在實機上確認：
   第一次啟動時側邊欄顯示導覽面板、活動列的指南針圖示可以切換、**檢視 ▸ 導覽** 有作用；切到檔案總管再關閉重開，會回到離開時的那個面板；
@@ -30,33 +36,12 @@
 
 ### 相依套件與發佈
 
-- **#112** 〔已決定：改用 Nuitka，兩份 auto-py-to-exe 設定可以刪除〕`exe/auto_py_to_exe_setting_linux.json` 與 InstallForge 專案 `exe/automation_ide_setup_config.ifp`
-  仍以舊名稱 AutomationIDE 建置，指向已不存在的 `exe/start_automation_editor.py` 與 `exe/je_driver_icon.ico`。擁有者答覆寫的是「Nukita」，這裡當成 Nuitka；動手前先確認。
 - **#121** 〔阻塞〕〔已決定：等正式推出且其他套件支援再說〕Python 3.15 上裝不了 PyBreeze：三個檔案都固定 `PySide6==6.11.2`，它的 wheel 標明 `Requires-Python <3.15`。
   PySide 的 `dev` 分支已把上限提到 `<3.16`，並把 QtWebEngine 拆成獨立的 `PySide6_WebEngine`；屆時要一併加上它（JEditor 的瀏覽器與 JupyterLab 分頁都用到），
   je-editor 與 frontengine 也要跟著動，再把 3.15 加進 CI、classifiers 與 README。
 - **#125** 在 Linux 與 macOS 上跑完整的單元測試並設為發佈門檻；現在那兩個平台的工作只跑 smoke test。
 
 ### 等 JEditor 發佈
-
-- **#151** 〔阻塞〕以下幾項已經在 JEditor 修掉（JEditor 的 U-20261115-01 ～ -05），等含這些修正的 je-editor 發佈之後，在這裡把下限提高、刪掉為舊版留的路徑，並更新文件：
-  - 導覽面板的 dock 路徑（`NavigationDock`、`_add_navigation_dock()`、`~/.pybreeze/ui_state.json` 的 `navigation_visible`）與它的測試
-    （`TestTheNavigationAsADock`、`test_navigation.py` 的 `in_a_dock`、`test_start_theme.py` 的 `dark_amber` 分支）。
-  - `ui_overview.rst` 中英文兩頁開頭那段「搭配較早的 JEditor」的註記，以及 Sphinx「File / Run / Text」頁面裡「儲存、執行、除錯每次都會跳出另存新檔」的說明
-    （JEditor 現在有檔案的分頁會存回原處，另有 **Save As**）。
-  - 繁體中文介面裡 JEditor 自己的用語已改成執行、字型、終端機、停駐窗格，Dock 選單的子選單也翻了；確認與 PyBreeze 自己的用語一致（`test_traditional_chinese_uses_taiwan_terms`）。
-  - 翻譯外掛的語言現在以它註冊的名稱列出（Sphinx Plugins 頁的法文範例會顯示 Français）。
-  - 除錯器跑完之後同一個分頁可以再次除錯；設定檔的 `ui_style` 不是字串時不再讓 IDE 起不來；JEditor 自己的自動儲存不再問「檔案被外部修改」
-    （`test_file_tree_rename.py` 兩個存檔測試為此擋掉分頁的監看訊號，可以拿掉）。
-  - 啟動時不再匯入 AI 聊天面板與 IPython；在這裡重新量一次 `-X importtime`，更新文件裡的啟動時間。
-  - Variable Inspector 與子行程環境的掛點已經在 JEditor 做好（JEditor 的 U-20261116-01、-02，PR #303），1.0.34 還沒有。下限提高到含它們的版本之後：
-    拿掉 `give_jeditor_the_child_environment()` 的 `ImportError` 分支與它的測試、Sphinx 裡「JEditor 1.0.34 與更早的版本」的三處註記
-    （`menu_file_run_text.rst`、教學 5 的疑難排解，中英文各一），並把 README 的功能清單補上 Variable Inspector。
-  - **PySide6 要一起從 6.11.2 改成 6.12.0**：je-editor 從 1.0.32 起釘的是 `PySide6==6.12.0`，而這裡釘 6.11.2，所以 pip 目前只會解析到 1.0.31 以下，
-    拿不到新外框。提高 je-editor 下限的同一個 commit 要把三個檔案（`requirements.txt`、`pyproject.toml`、`dev.toml`）的 PySide6 改成 6.12.0，
-    並確認 frontengine（允許 `<6.13,>=6.11.2`）與 README 的版本說明。
-
-### 仍要在 JEditor 動手
 
 ### PyBreeze 自己的功能
 

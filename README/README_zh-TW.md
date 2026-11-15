@@ -78,7 +78,7 @@ PyBreeze 開箱即用，涵蓋自動化測試的完整範疇：
 ### IDE 核心
 
 - **自動化關鍵字集** — 在 JEditor 的語言支援之上，`AT_*`／GUI／Web／Load 關鍵字集註冊給 `.json`，TestPioneer 的結構描述註冊給 `.yml` 與 `.yaml`。JEditor 目前還不會為它們上色：它用自己針對這些副檔名的規則高亮，不會用到註冊的關鍵字
-- **程式碼編輯器** — 以 [JEditor](https://github.com/Integration-Automation/JEDITOR) 為基礎：分頁、專案樹、格式檢查、除錯器、終端機與 git 用戶端面板
+- **程式碼編輯器** — 以 [JEditor](https://github.com/Integration-Automation/JEDITOR) 為基礎：分頁、專案樹、格式檢查、除錯器、變數檢視器（IPython 主控台的變數，或暫停中的除錯器的區域變數）、終端機與 git 用戶端面板
 - **導覽面板** — 側邊欄的一個面板，在活動列有自己的圖示，把選單裡的功能列成一棵樹（自動化、工具、設定）：在搜尋框輸入名稱就能找到工具或指令，按 Enter 或按兩下即可開啟。第一次啟動時顯示的就是它；從活動列或 **檢視 ▸ 導覽** 切換到它，離開時開著哪個面板，下次啟動就顯示哪個
 - **小螢幕也放得下** — 工具分頁需要的寬度不會超過 60 個字高：一列按鈕放不下時會換到下一行，而不是把視窗撐得比螢幕還寬
 - **腳本執行** — 單一或批次執行，每次執行都有自己的視窗與 Stop 按鈕（Run ▸ Stop All Program 會全部停止），執行中關閉視窗時會先問要不要停止；動作檔以路徑傳入，而目前分頁中的腳本若超過 Windows 命令列長度上限（約 32 KB），會改用暫存檔傳遞
@@ -386,7 +386,7 @@ pip install -r requirements.txt
 
 - **Python**：3.11 – 3.14
 - **作業系統**：Windows、macOS、Linux
-- **GUI**：PySide6 6.11.2（自動安裝）
+- **GUI**：PySide6 6.12.0（自動安裝）
 
 ---
 
@@ -470,7 +470,7 @@ PyBreeze/
 │   │   └── syntax/                    # 自動化關鍵字定義
 │   └── utils/                         # curl/HAR 解析、標頭、JWT、雜湊、
 │                                      # URL 驗證、日誌、例外……
-├── exe/                               # 獨立啟動器與建置設定
+├── exe/                               # 獨立啟動器與 Nuitka 建置腳本
 ├── docs/                              # Sphinx 文件原始碼；updates/ 是更新紀錄
 ├── test/                              # 單元測試（test_utils）+ 啟動測試
 ├── scripts/                           # 開發通道的發佈輔助腳本（dev_release.py）
@@ -492,8 +492,8 @@ PyBreeze/
 
 | 套件 | 用途 |
 |---|---|
-| `PySide6` (6.11.2) | GUI 框架（Qt for Python） |
-| `je-editor` | 基礎程式碼編輯器引擎 |
+| `PySide6` (6.12.0) | GUI 框架（Qt for Python） |
+| `je-editor`（1.0.35 以上） | 基礎程式碼編輯器引擎、視窗與它的主題 |
 | `je_api_testka` | API 測試自動化 |
 | `je_auto_control` | GUI／桌面自動化 |
 | `je_web_runner` | Web 瀏覽器自動化 |
@@ -505,12 +505,11 @@ PyBreeze/
 | `jupyterlab`（4.6.6）、`jupyter_server`（2.21.1） | 整合的筆記本環境 |
 | `requests`（2.34.2）、`urllib3`（2.8.0） | 內建工具與 AI 面板的 HTTP 請求 |
 | `cryptography`（50.0.2） | 讀取 SSH 私鑰 |
-| `qt-material`（2.17） | Material 視窗主題 |
 | `gitpython`（3.1.60 以上） | 編輯器的 Git 功能 |
 
 ### 開發
 
-`build`、`twine`、`sphinx`、`sphinx-rtd-theme`、`auto-py-to-exe`、`pytest`、`pytest-cov`、`hypothesis`、`ruff`
+`build`、`twine`、`sphinx`、`sphinx-rtd-theme`、`nuitka`、`pytest`、`pytest-cov`、`hypothesis`、`ruff`
 
 ---
 

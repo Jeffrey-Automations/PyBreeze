@@ -18,4 +18,5 @@ sphinx
 sphinx-rtd-theme
 build
 twine
-auto-py-to-exe
+# 打包成執行檔用（exe/build_nuitka.py）/ Builds the executable (exe/build_nuitka.py)
+nuitka==4.3.5

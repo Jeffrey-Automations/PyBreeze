@@ -20,13 +20,17 @@ File Menu
    * - **New File**
      - Asks for a name and a place, and creates an empty file there (it is not opened).
    * - **Open File**
-     - Opens a file into the editor tab in front, replacing what it shows, without asking
-       about unsaved text there (see :doc:`ui_overview`).
+     - Opens a file in an editor tab of its own (a blank, untouched tab is reused), so
+       nothing unsaved in the tab in front is replaced (see :doc:`ui_overview`).
    * - **Open Folder**
      - Makes a folder the working folder: the file tree shows it, and its settings are
        loaded (see :doc:`getting_started`).
    * - **Save File**
-     - Opens a **Save As** dialog, starting in the working folder, and writes the tab there.
+     - Writes the tab back to its file. A tab that has no file yet is asked where to go,
+       as with **Save As**.
+   * - **Save As...**
+     - Opens a dialog, starting in the working folder, and writes the tab to the place
+       chosen; the tab is that file from then on.
    * - **Recent Files**
      - The last files opened; one opens in a new tab. The list is rebuilt at start-up.
    * - **Font** / **Font Size**
@@ -49,8 +53,8 @@ Run Menu
    * - Menu Item
      - Description
    * - **Run Program > Run Program**
-     - Opens a **Save As** dialog, writes the tab, then runs the file with Python; the
-       output goes to the tab's **Code result**. One program at a time per tab.
+     - Saves the tab to its file (asking where only when it has none), then runs the file
+       with Python; the output goes to **Code result**. One program at a time per tab.
    * - **Run Program > Show program input**
      - A small window whose line is sent to the running program's standard input.
    * - **Run On Shell > Run On Shell**
@@ -59,10 +63,8 @@ Run Menu
    * - **Run On Shell > Show shell input**
      - The same input window, for the shell.
    * - **Debugger > Run Debugger**
-     - Opens a **Save As** dialog, then runs the file under ``pdb`` with the breakpoints set
+     - Saves the tab to its file, then runs the file under ``pdb`` with the breakpoints set
        in the editor's gutter, output in the **Debugger** tab and the input window open.
-       With JEditor 1.0.27 it runs once per editor tab: to debug again, open the file in
-       another tab.
    * - **Debugger > Show debugger input**
      - Opens the debugger's input window again.
    * - **Clean Result**
@@ -168,8 +170,7 @@ Tab and Dock Menus
   front
 - **Snippet Editor** -- the snippets in ``.jeditor/snippets.json``
 - **Tools Tab** -- IPython (Jupyter, inside the IDE's own Python), the variable inspector
-  (the IPython console's variables, editable, or the locals of a paused debugger; empty
-  with JEditor 1.0.34 and earlier, where nothing gave it variables to show),
+  (the IPython console's variables, editable, or the locals of a paused debugger),
   FrontEngine, ChatUI, the TODO panel, the outline of the current Python file, and
   JupyterLab (see :doc:`jupyter_lab`)
 - **Git Tab** -- the Git client, the branch tree viewer, the code diff viewer, and the
