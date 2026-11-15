@@ -147,6 +147,9 @@ pybreeze_english_word_dict = {
     "prthinker_setting_openai_base_url_label": "OpenAI-compatible base URL",
     "prthinker_setting_openai_api_key_label": "OpenAI API key",
     "prthinker_setting_anthropic_api_key_label": "Anthropic API key",
+    "prthinker_setting_gemini_api_key_label": "Gemini API key",
+    "prthinker_setting_cohere_api_key_label": "Cohere API key",
+    "prthinker_setting_mistral_api_key_label": "Mistral API key",
     "prthinker_setting_platform_label": "Code host",
     "prthinker_setting_platform_base_url_label": "Code host base URL (self-hosted)",
     "prthinker_setting_repository_label": "Repository (owner/name)",
@@ -155,8 +158,8 @@ pybreeze_english_word_dict = {
     "prthinker_setting_source_path_label": "prthinker source folder",
     "prthinker_setting_stored_at_label": "Stored at:",
     "prthinker_setting_key_from_environment": (
-        "This backend takes its key from the environment variable {variable}, set before PyBreeze starts; "
-        "there is no field for it here."),
+        "With its key field left empty, this backend takes its key from the environment variable {variable}, "
+        "set before PyBreeze starts."),
     "prthinker_setting_bad_extra_arguments": "The extra arguments cannot be read: a quote is left open. Close it or remove it, then save.",
     "prthinker_setting_save_failed": "The settings could not be saved to {path}. What was there before is kept.",
     # Prompt editors — where the edited prompts override the built-in ones from

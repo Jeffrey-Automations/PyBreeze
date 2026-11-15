@@ -63,8 +63,6 @@
 
 ### PyBreeze 自己的功能
 
-- **#89** 〔已決定：提供〕prthinker 設定有 Gemini、Cohere、Mistral 後端，卻沒有填金鑰的欄位：prthinker 從啟動 IDE 的環境讀取，對話框只在選到它們時顯示變數名稱
-  （`KEY_FROM_ENVIRONMENT`，`dialog/prthinker_setting_dialog.py`）。要比照 OpenAI 與 Anthropic 加上密碼欄位，並與它們存在一起。
 - **#111** 〔已決定：允許，在確認畫面明確顯示該位址後放行〕AI Code Review、CoT Code Review 與 Skill Send 拒絕本機與私有網路的端點（`validate_url`；`url_validation._is_blocked_ip`），
   所以本機的模型伺服器（Ollama、LM Studio、localhost 上的 prthinker）用不了。要讓使用者在看過位址的確認之後允許 loopback 或私有位址；CLAUDE.md 的 Security › Network 規則要跟著改。
 - **#130** 〔決定〕JEditor 設定裡存的直譯器（`python_compiler`）每次啟動都被忘掉：`EditorMain.startup_setting()` 還原之後，`PyBreezeMainWindow.__init__` 又設成 `None`

@@ -19,14 +19,13 @@ from PySide6.QtWidgets import (
 from je_editor import language_wrapper
 
 from pybreeze.extend.prthinker_extend.prthinker_setting import (
-    BACKENDS, KEY_FROM_ENVIRONMENT, PLATFORMS, RAG_MODES, load_setting, read_extra_arguments, save_setting,
-    setting_path
+    BACKENDS, KEY_FROM_ENVIRONMENT, PLATFORMS, RAG_MODES, SECRET_SETTINGS, load_setting,
+    read_extra_arguments, save_setting, setting_path
 )
 from pybreeze.pybreeze_ui.plain_text import as_text
 
 # 以圓點顯示的欄位 / The fields shown as dots
-SECRET_FIELDS = (
-    "remote_api_key", "openai_api_key", "anthropic_api_key", "platform_token")
+SECRET_FIELDS = SECRET_SETTINGS
 
 # 從清單裡選的欄位，以及各自的選項 / The fields picked from a list, and each one's choices
 CHOICE_FIELDS = {"backend": BACKENDS, "rag": RAG_MODES, "platform": PLATFORMS}
@@ -42,6 +41,9 @@ FIELDS = (
     ("openai_base_url", "prthinker_setting_openai_base_url_label"),
     ("openai_api_key", "prthinker_setting_openai_api_key_label"),
     ("anthropic_api_key", "prthinker_setting_anthropic_api_key_label"),
+    ("gemini_api_key", "prthinker_setting_gemini_api_key_label"),
+    ("cohere_api_key", "prthinker_setting_cohere_api_key_label"),
+    ("mistral_api_key", "prthinker_setting_mistral_api_key_label"),
     ("platform", "prthinker_setting_platform_label"),
     ("platform_base_url", "prthinker_setting_platform_base_url_label"),
     ("repository", "prthinker_setting_repository_label"),
@@ -103,7 +105,7 @@ class PRThinkerSettingDialog(QDialog):
         return editor
 
     def _show_key_note(self, backend: str) -> None:
-        """說出 *backend* 的金鑰從哪個環境變數來；有金鑰欄位的後端就不顯示 / Say where *backend*'s key comes from, if not from this form."""
+        """說出 *backend* 的金鑰欄位留空時改從哪個環境變數來 / Say which variable *backend*'s key comes from when its field is left empty."""
         variable = KEY_FROM_ENVIRONMENT.get(backend)
         self.key_note.setText(
             self.word_dict.get("prthinker_setting_key_from_environment").format(variable=variable)

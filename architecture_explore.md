@@ -52,7 +52,7 @@ PyBreeze 是一個「自動化優先」的 Python IDE，建構在 **PySide6 + JE
    ┌─────────────────────────────────────────────────────────────────────────┐
    │ 基礎層 Foundation                                                        │
    │  pybreeze/utils/              21 個工具子套件（純邏輯，可單測）           │
-   │  pybreeze/extend_multi_language/  內建 i18n（英 / 繁中，各 995 鍵）      │
+   │  pybreeze/extend_multi_language/  內建 i18n（英 / 繁中，各 998 鍵）      │
    └─────────────────────────────────────────────────────────────────────────┘
                                     ▼
    外部子行程：python -m je_api_testka / je_auto_control / je_web_runner /
@@ -68,7 +68,7 @@ PyBreeze 是一個「自動化優先」的 Python IDE，建構在 **PySide6 + JE
 
 1. 取得（或建立）`QApplication`，裝上 `collect_garbage_on_gui_thread()`（`pybreeze_ui/gui_thread_gc.py`：關掉自動垃圾回收，改在 UI 執行緒上定時回收，見 §16）
 2. 建立 `PyBreezeMainWindow`，其 `__init__` 依序：
-   - `update_language_dict()` 併入 PyBreeze 的 995 條翻譯——**必須在 `super().__init__` 之前**：JEditor 在那裡依設定挑啟動語言，英文以外的語言讀的是當下合併出來的一份副本，之後才加進去的字串它看不到，選單拿到 `None` 標題就讓 Qt 當掉（access violation）
+   - `update_language_dict()` 併入 PyBreeze 的 998 條翻譯——**必須在 `super().__init__` 之前**：JEditor 在那裡依設定挑啟動語言，英文以外的語言讀的是當下合併出來的一份副本，之後才加進去的字串它看不到，選單拿到 `None` 標題就讓 Qt 當掉（access violation）
    - `super().__init__(..., extend=True)` — JEditor 在此已呼叫 `load_external_plugins()`，自動掃描 CWD 下的 `jeditor_plugins/`，也以 `startup_setting()` 套上存下的設定與 UI Style 主題
    - `show_only_warnings_in_code_result()`（`pybreeze_ui/code_result_logs.py`）— JEditor 剛把一個 `RedirectStdErr` 掛到當下每個 logger 上、收到的顯示在 Code Result；自動化套件 import 時把 root 設成 DEBUG，所以開檔就有 gitpython 的除錯訊息以紅字出現。把這個 handler 的門檻調到 WARNING，logger 本身的層級不動
    - 刪掉 JEditor 原本的 Help 選單
@@ -456,7 +456,7 @@ first_summary → first_code_review → judge_single_review ┐（評分前一�
 
 ## 13. `pybreeze/extend_multi_language/`
 
-`extend_english.py` 與 `extend_traditional_chinese.py` 各 995 個鍵，`update_language_dict()` 把它們併進 `je_editor` 的字典，並把 `application_name`（「PyBreeze」）寫進 `language_wrapper.choose_language_dict` 裡每一個語言：這是 PyBreeze 唯一覆寫而非新增的 JEditor 鍵，日文、簡中等 PyBreeze 沒翻譯的語言自帶「JEditor」，不寫的話會蓋過英文退回值。`test_language_parity.py` 守住兩邊鍵值必須對齊，也檢查每個已註冊語言都解得出程式用到的每個鍵；`test_startup_language.py` 在子行程裡用存好的繁中／日文真的啟動主視窗。
+`extend_english.py` 與 `extend_traditional_chinese.py` 各 998 個鍵，`update_language_dict()` 把它們併進 `je_editor` 的字典，並把 `application_name`（「PyBreeze」）寫進 `language_wrapper.choose_language_dict` 裡每一個語言：這是 PyBreeze 唯一覆寫而非新增的 JEditor 鍵，日文、簡中等 PyBreeze 沒翻譯的語言自帶「JEditor」，不寫的話會蓋過英文退回值。`test_language_parity.py` 守住兩邊鍵值必須對齊，也檢查每個已註冊語言都解得出程式用到的每個鍵；`test_startup_language.py` 在子行程裡用存好的繁中／日文真的啟動主視窗。
 
 `supported_languages.py`(88) 把「支援哪些語言」寫明白：`MAINTAINED`（`MaintainedLanguage`：JEditor 語言包裝器裡的 key、語言選單顯示的名稱、字典）是 PyBreeze 自己維護、每個鍵都有翻譯的語言，目前是 English 與繁體中文；`EDITOR_ONLY` 是 JEditor 自帶、PyBreeze 沒有加任何字串的日本語與简体中文（選了之後編輯器自己的選單會變，PyBreeze 的仍是英文，那不是 PyBreeze 的缺陷）；兩邊都不在的是翻譯外掛註冊的（`who_translates()` 回 `Owner.PLUGIN`）。字串屬於定義那個鍵的一方，兩邊只在 `REWORDED_JEDITOR_KEYS` 重疊（`application_name`、`plugin_browser_*`、`plugin_menu_*`：JEditor 的鍵，PyBreeze 在自己維護的語言裡用自己的說法）。`update_language_dict()` 照 `MAINTAINED` 逐一把字典併進 `choose_language_dict[key]`（JEditor 沒有那個語言時記 log、其餘照併）；`extend_english.py` 與 `extend_traditional_chinese.py` 因此只剩資料，不再 import JEditor。`test_supported_languages.py` 讀 JEditor 自己的語言清單：有一個語言兩邊都沒列、維護中的字典和第一份鍵不一樣、多出一個和 JEditor 重疊的鍵、三份 README 少寫任何一個語言在選單上的名稱，都會失敗。
 
