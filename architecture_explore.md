@@ -75,7 +75,7 @@ PyBreeze 是一個「自動化優先」的 Python IDE，建構在 **PySide6 + JE
    - 設定標題、Windows AppUserModelID、圖示（`pybreeze_icon.ico`，在 `main_ui.py` 旁邊、以 package data 隨套件發佈：`pyproject.toml` / `dev.toml` 的 `[tool.setuptools.package-data]`，執行檔建置用 `datas` 帶進去，所以不論從哪個資料夾啟動都有圖示）
    - `add_menu_to_menubar()` — 建構全部選單（見 §5）
    - `syntax_extend_package()` — 註冊 `.json` / `.yml` / `.yaml` 自動化關鍵字高亮
-   - `_add_navigation_dock()` — 選單建好之後，把導覽面板加到左側（見 §5.6），它的每一行都是剛建好的某個選單 action；`~/.pybreeze/ui_state.json` 記著上次關掉就不顯示
+   - `_add_navigation()` — 選單建好之後加入導覽面板（見 §5.6），它的每一行都是剛建好的某個選單 action。JEditor 的視窗有外框（`workbench`）時，面板是側邊欄的一個面板（`workbench.add_view("pybreeze_navigation", "side", ...)`，活動列有圖示、檢視選單有項目）：JEditor 建視窗時還原版面那一刻還沒有這個面板，所以這裡再還原一次（`restore_layout()`），沒有存過版面（第一次啟動）就直接顯示它。沒有外框的 JEditor 則走 `_add_navigation_dock()`，放在左側的 dock，`~/.pybreeze/ui_state.json` 記著上次關掉就不顯示
    - 依 `EDITOR_EXTEND_TAB` 註冊表加入外部擴充分頁（`_add_extend_tabs()`：每一個分頁各自建，建不起來的只記 log，不會讓整個 IDE 起不來）
    - `setup_file_tree_context_menu()` — 掛上檔案樹右鍵選單，以及焦點在樹上時的 F2（重新命名）與 Delete（刪除，先問、預設否）快捷鍵（`_attach_keys()`，`WidgetShortcut`，走選單的同一組動作）。改名時開著的分頁跟著檔案走（改資料夾也一樣，底下每個開著的檔案都跟著走）：先停掉分頁的自動存檔、改名、再用新路徑重開一條（`_stop_auto_save()` / `_start_auto_save()`）——JEditor 的存檔執行緒只認開檔當下的路徑，沒辦法改指向。外部修改監視也跟著搬（改名前就先移除，檔案搬走後 Windows 放不掉舊名），並照 `open_an_file` 重載語法高亮、git 基準與語言伺服器（`rename_self_tab()` 會清掉「未儲存」標記，有未存的編輯就用 `_on_text_changed()` 放回去，否則改名後五秒內關分頁會直接丟掉編輯）；Dock Editor（`FullEditorWidget`，關閉時才寫回、檔案不存在就不寫）的 `current_file` 也改指新路徑（`_dock_editors_under()`）。新增與改名的名稱不能帶磁碟代號、根目錄、`..` 或 `:`，也不能解析到資料夾外（`_inside()`；改名只能是單一名稱）。刪除先移到系統的回收筒（`_move_to_trash()`：`QFile.moveToTrash`，Windows 的資源回收筒、macOS 與 freedesktop 的垃圾桶）；沒有回收筒可用時再問一次（預設否）才永久刪除，資料夾用 `remove_folder()`（唯讀檔清掉唯讀屬性再刪，git 的物件檔就是唯讀）；符號連結與 junction 只刪連結本身，不進回收筒。刪除時同樣用 `_editors_under()`：檔案或資料夾底下每個開著的分頁先停掉自動存檔，再刪；刪完只關掉檔案真的不見了的分頁，刪不掉（被鎖住、唯讀）的檔案分頁留著、自動存檔重開。「在檔案總管中顯示」由 `reveal_command()` 組指令：Windows 用 Explorer 的 `/select,`、macOS 用 `open -R` 把檔案選起來，其他平台 `xdg-open` 只能開資料夾；啟動失敗（例如沒有 `xdg-open`）經 `_perform_file_op()` 跳警告
    - `close_tab()` 覆寫 JEditor 的：分頁有 `may_close()` 就先問（提示詞編輯器、架構圖編輯器有未存的變更時會問）；關掉的工具分頁 `deleteLater()`（JEditor 的 `removeTab` 不刪 widget，關過的工具分頁會留到 IDE 結束），JEditor 自己的編輯器分頁不動，關閉 IDE 時也先問過每個分頁與 dock，有一個說不就取消關閉
@@ -232,12 +232,12 @@ Template Method 定義的子行程生命週期：
 
 ### 5.6 導覽面板 `pybreeze_ui/navigation/` 與設計系統 `pybreeze_ui/design/`
 
-**導覽面板**是主視窗左側的一個 dock（`NavigationDock`，普通的 `QDockWidget`，關掉只是隱藏），把原本藏在最多四層選單裡的功能列成一棵一直看得到、可以搜尋的樹。它自己不定義任何功能：
+**導覽面板**（`NavigationPanel`）把原本藏在最多四層選單裡的功能列成一棵一直看得到、可以搜尋的樹。JEditor 的視窗有外框時，它是側邊欄的一個面板（ID `pybreeze_navigation`），顯示與否由 JEditor 的版面（`.jeditor/user_setting.json` 的 `shell_layout`）記著；沒有外框的 JEditor 之下，它放在主視窗左側的 dock 裡（`NavigationDock`，普通的 `QDockWidget`，關掉只是隱藏）。它自己不定義任何功能：
 
 - `navigation_model.py`(151)：`CATEGORIES` 依序是 Automation、Tools、MCP、Reports、Settings；`build_navigation(window)` 回傳每一類的 `NavigationEntry`（文字、`activate`、子項）。Automation 是整個 `automation_menu` 的鏡像（`entries_from_menu()`：分隔線、隱藏的項目、空的子選單略過，`&` 助記符去掉）；Tools／MCP／Reports 取自 `TOOLS` 中該 `category` 的工具，文字用分頁標籤、`activate` 就是分頁 action 的 `trigger`，有 `group` 的收在以子選單標題命名的一行底下；Settings 是 JEditor 的 UI Style 選單（JEditor 沒留屬性，靠 `style_menu_label` 這個字在選單列上找）、`language_menu`、`venv_menu` 與 PyBreeze 的 `install_menu`，找不到的就不列。沒有內容的類別整個不列，所以 MCP 與 Reports 要等有那一類的工具註冊才出現
 - 子選單一律用 `submenus_under()` 找（`findChildren(QMenu)` 加每個選單的 `menuAction()`），不呼叫 `QAction.menu()`：PySide6 6.11.0 之下它回傳的物件被丟掉時會把選單一起刪掉（這個版本上 11 個選單測試失敗就是這個原因），讀選單不該動到選單
-- `navigation_dock.py`(128)：搜尋框加 `QTreeWidget`。輸入文字只留下含有它的行與它們的上層（不分大小寫；某一行符合就保留它底下全部；類別自己的標題不參與搜尋，不然打「Tools」會列出所有工具），都沒有就以 `StatusLine` 說沒有符合的項目；Enter 或按兩下執行該行的 `activate`，action 已經不在了（`RuntimeError`）只記 log
-- 顯示與否記在 `~/.pybreeze/ui_state.json`（`utils/ui_state.py`），而且只在使用者表示的時候記：Dock 選單裡那個項目的 `triggered`，或面板自己的關閉鈕（`closeEvent`）。不接 `toggled`／`visibilityChanged`，因為 IDE 關閉時那個項目的勾選狀態也會變，每次離開都會被記成隱藏
+- `navigation_dock.py`(156)：`NavigationPanel` 是搜尋框加 `QTreeWidget`；`NavigationDock` 把一個面板放進 dock，並以原本的名字（`tree`、`filter_edit`、`status`、`apply_filter`）露出它的零件。輸入文字只留下含有它的行與它們的上層（不分大小寫；某一行符合就保留它底下全部；類別自己的標題不參與搜尋，不然打「Tools」會列出所有工具），都沒有就以 `StatusLine` 說沒有符合的項目；Enter 或按兩下執行該行的 `activate`，action 已經不在了（`RuntimeError`）只記 log
+- 放在 dock 裡的時候，顯示與否記在 `~/.pybreeze/ui_state.json`（`utils/ui_state.py`），而且只在使用者表示的時候記：Dock 選單裡那個項目的 `triggered`，或面板自己的關閉鈕（`closeEvent`）。不接 `toggled`／`visibilityChanged`，因為 IDE 關閉時那個項目的勾選狀態也會變，每次離開都會被記成隱藏
 
 **設計系統**是 PyBreeze 自己的面板共用的尺寸與零件，讓面板不必各自寫像素：
 

@@ -11,7 +11,11 @@
 
 ![PyBreeze main window](images/main_window.png)
 
-*The main window: an APITestka action file open in the editor, project tree on the left, run/format/debug/terminal panes below.*
+*The main window in the default theme: an APITestka action file open in the editor, the Navigation view in the side bar with the activity bar at its left, and the output, problems, terminal and debug panes below.*
+
+![PyBreeze main window, light theme](images/main_window_light.png)
+
+*The same window in JEditor Light, with the Explorer in the side bar.*
 
 ---
 
@@ -75,7 +79,7 @@ Each module gets the same menu shape: **Run** (single script, batch directory, w
 
 - **Automation keyword sets** — the `AT_*` / GUI / Web / Load keyword sets are registered for `.json`, and TestPioneer's schema for `.yml` and `.yaml`, on top of JEditor's language support. JEditor does not colour them yet: it highlights those files with its own rules for the suffix, which leave registered keywords out
 - **Code editor** — built on [JEditor](https://github.com/Integration-Automation/JEDITOR): tabs, project tree, format checker, debugger, terminal and a git client pane
-- **Navigation panel** — a dock at the left lists what the menus hold as one tree (Automation, Tools, Settings): type in its box to find a tool or a command by name, then press Enter or double-click to open it. **Dock ▸ Navigation** shows and hides it, and a panel closed on purpose stays closed at the next start
+- **Navigation panel** — a view of the side bar, with its own icon in the activity bar, lists what the menus hold as one tree (Automation, Tools, Settings): type in its box to find a tool or a command by name, then press Enter or double-click to open it. It is the view shown on a first start; the activity bar or **View ▸ Navigation** switches to it, and the view left open is the one shown at the next start
 - **Fits a small screen** — a tool tab never asks for more than 60 font heights of width: a row of buttons too long for the tab wraps onto the next line instead of pushing the window wider than the display
 - **Script execution** — single or batch, each run in a window of its own with a Stop button (Run ▸ Stop All Program stops them all), which asks whether to stop the run when it is closed while the run goes on; action files are passed by path, and a script from the tab in front that is too long for a Windows command line (~32 KB) goes through a temporary file
 - **Report generation** — HTML / JSON / XML after a run, with optional email delivery
@@ -396,8 +400,8 @@ python exe/start_pybreeze.py      # from the exe directory
 ```python
 from pybreeze import start_editor
 
-start_editor()                              # the theme picked from UI Style (dark_amber until one is)
-start_editor(theme="dark_teal.xml")         # any qt_material theme; it becomes the picked one
+start_editor()                              # the theme picked from UI Style (JEditor Dark until one is)
+start_editor(theme="jeditor_light")         # a JEditor theme, or any qt_material one such as "dark_teal.xml"; it becomes the picked one
 ```
 
 Once launched:
@@ -539,4 +543,4 @@ MIT — see [LICENSE](LICENSE). Copyright (c) 2022 JE-Chen
 
 ---
 
-<sub>Screenshots are rendered from the actual PyBreeze widgets on Windows 11 with the default `dark_amber` theme; the sample data in each tool is real input processed by the real code path.</sub>
+<sub>Screenshots are rendered from the actual PyBreeze widgets on Windows 11: the main window and the menus in the default JEditor Dark theme, the tool tabs in `dark_amber`, the default when those were taken; the sample data in each tool is real input processed by the real code path.</sub>

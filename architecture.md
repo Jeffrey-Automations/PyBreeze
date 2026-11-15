@@ -33,7 +33,7 @@ their output reaches the UI through Queue + QTimer.
 | `pybreeze/pybreeze_ui/connect_gui/` | `ssh/` terminal + SFTP tree; `url/` HTTP code-review client |
 | `pybreeze/pybreeze_ui/jupyter_lab_gui/`, `show_code_window/`, `syntax/` | JupyterLab tab; `CodeWindow` subprocess output window; automation keyword highlighting |
 | `pybreeze/pybreeze_ui/design/` | The design system PyBreeze's own panels are built from: `tokens.py` (gaps, text and icon sizes in ems, a state's theme colour), `flow_layout.py` (a row that wraps), `panels.py` (`Panel`, `StatusLine`, `wrapping_row`) |
-| `pybreeze/pybreeze_ui/navigation/` | The navigation panel: `navigation_model.py` reads the menus and the tool table into five categories, `navigation_dock.py` shows them as a searchable tree in a dock at the left |
+| `pybreeze/pybreeze_ui/navigation/` | The navigation panel: `navigation_model.py` reads the menus and the tool table into five categories, `navigation_dock.py` shows them as a searchable tree (`NavigationPanel`): a view of the side bar of JEditor's shell with an icon in its activity bar, or, with a JEditor whose window has no shell, in a dock at the left (`NavigationDock`) |
 | `pybreeze/pybreeze_ui/mcp_gui/` | The MCP client tab: `mcp_client_gui.py` (connecting, asking before a call, cancelling, the session's log), `mcp_server_panel.py` (the user's servers and the project's), `mcp_profile_dialog.py`, `mcp_panels.py` (tools, resources, prompts, calls), `mcp_worker.py` (one blocking call on a `KeptThread`) |
 | `pybreeze/pybreeze_ui/report_gui/` | The report viewer tab (`report_viewer_gui.py`): several runs as one tree, a filter bar, the selected result's details, output, attachments and own record, and export |
 | `pybreeze/pybreeze_ui/thread_keeper.py` | `let_run_out()`: a worker `QThread` whose widget closed is kept until it ends instead of being waited for |
@@ -72,6 +72,7 @@ The layers are presentation (`pybreeze_ui/`), then execution (`extend/`), then f
   of other repositories may call it: the arguments, the exit codes and the rule ids are a contract.
 - **Programmatic**: `pybreeze.start_editor(debug_mode=False, theme=None, **kwargs)`. A `theme` replaces
   the one picked from UI Style (JEditor's saved `ui_style`) and is saved as it; `None` keeps the saved one.
+  It is a theme of JEditor's own (`jeditor_dark`, `jeditor_light`) or a qt_material one.
   `debug_mode=True` adds an auto-close timer, which CI uses.
 - **Main window**: `PyBreezeMainWindow` exposes `tab_widget`, `current_run_code_window` and
   `python_compiler`.
@@ -104,7 +105,8 @@ python -m pybreeze → start_editor() → QApplication → open_main_window() �
   → update_language_dict()             [before JEditor picks the startup language]
   → EditorMain.__init__(extend=True)   [JEditor builds the editor, loads jeditor_plugins/]
   → drop JEditor Help menu → add_menu_to_menubar()
-  → syntax_extend_package() → navigation dock (build_navigation reads the menus just built)
+  → syntax_extend_package() → navigation (build_navigation reads the menus just built; added as a
+     side bar view, then JEditor's saved layout is restored again, or the view shown on a first start)
   → EDITOR_EXTEND_TAB tabs → setup_file_tree_context_menu()
      [EditorMain.__init__ has applied the saved settings and UI Style theme: startup_setting()]
   → a theme given to start_editor(): saved as ui_style, startup_setting() again
@@ -265,6 +267,10 @@ MCP Client → Calls → Open in Report Viewer → ReportViewerGUI.show_report(M
   `run_menu.stop_all_program_action` (Stop All Program also stops every run window's run), on
   `EditorMain.__init__` calling `startup_setting()` (the window is built with the saved settings and
   theme; `open_main_window()` applies them again only for a theme given to `start_editor()`), its
+  `workbench` (the shell of its window: `add_view(view_id, "side", widget=..., title_key=..., icon="navigation")`,
+  `show_view()`, `has_saved_layout()` and `restore_layout()`, with which the navigation panel becomes
+  a side bar view; a JEditor without one gets the panel in a dock), on its `apply_style(style_name)`
+  (the theme given to `start_editor()` when `startup_setting()` fails), on its
   `dock_menu` and its AI submenu `dock_ai_menu` (PyBreeze's AI docks join it; without one they get an
   AI submenu of their own, `menu/tools/tools_menu.py`), on its `language_menu` and `venv_menu` and on the
   `style_menu_label` word that titles its UI Style menu (the navigation panel lists the three under

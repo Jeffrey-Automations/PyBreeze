@@ -30,7 +30,12 @@ from pybreeze.pybreeze_ui.closing import AskingDock, may_close
 from pybreeze.pybreeze_ui.editor_main.file_tree_context_menu import setup_file_tree_context_menu
 from pybreeze.pybreeze_ui.gui_thread_gc import collect_garbage_on_gui_thread
 from pybreeze.pybreeze_ui.menu.build_menubar import add_menu_to_menubar
-from pybreeze.pybreeze_ui.navigation.navigation_dock import VISIBLE_STATE, NavigationDock
+from pybreeze.pybreeze_ui.navigation.navigation_dock import (
+    NAVIGATION_VIEW,
+    VISIBLE_STATE,
+    NavigationDock,
+    NavigationPanel,
+)
 from pybreeze.pybreeze_ui.navigation.navigation_model import build_navigation
 from pybreeze.pybreeze_ui.show_code_window.code_window import CodeWindow
 from pybreeze.pybreeze_ui.syntax.syntax_extend import \
@@ -115,7 +120,7 @@ class PyBreezeMainWindow(EditorMain):
         self.run_menu.stop_all_program_action.triggered.connect(self.stop_all_runs)
 
         # Navigation: what the menus hold, as a tree that stays in view
-        self._add_navigation_dock()
+        self._add_navigation()
 
         # Action scripts are completed and checked from the installed frameworks' keywords
         self._offer_language_server()
@@ -132,15 +137,43 @@ class PyBreezeMainWindow(EditorMain):
             close_timer.timeout.connect(self.debug_close)
             close_timer.start()
 
-    def _add_navigation_dock(self) -> None:
-        """Add the navigation panel at the left, shown unless the user closed it last time.
+    def _add_navigation(self) -> None:
+        """Add the navigation panel: a view of the side bar where the window has a shell.
 
-        Built after the menus: each of its lines is one of their actions. Its
-        entry in the Dock menu shows and hides it. Whether it is shown is
+        Built after the menus: each of its lines is one of their actions.
+        JEditor's shell gives it an icon in the activity bar and an entry in
+        the View menu, and remembers with its own layout whether it is the
+        view shown. JEditor restored that layout while it was building the
+        window, before this view existed, so it is restored again here; on a
+        first start, with nothing saved, the panel is the view shown. A JEditor
+        from before its window had a shell gets the panel in a dock instead.
+        """
+        navigation = build_navigation(self)
+        workbench = getattr(self, "workbench", None)
+        if workbench is None:
+            self._add_navigation_dock(navigation)
+            return
+        self.navigation_dock = None
+        self.navigation_panel = NavigationPanel(navigation)
+        workbench.add_view(
+            NAVIGATION_VIEW, "side", widget=self.navigation_panel,
+            title_key="navigation_dock_title", icon="navigation")
+        if workbench.has_saved_layout():
+            workbench.restore_layout()
+        else:
+            workbench.show_view(NAVIGATION_VIEW)
+
+    def _add_navigation_dock(self, navigation: dict) -> None:
+        """Add the navigation panel in a dock at the left, shown unless the user closed it last time.
+
+        Its entry in the Dock menu shows and hides it. Whether it is shown is
         remembered only when the user says so (that entry, or the panel's own
         close button): the entry's checked state also changes as the IDE closes.
+
+        :param navigation: what each category holds (``build_navigation``)
         """
-        self.navigation_dock = NavigationDock(build_navigation(self), self)
+        self.navigation_dock = NavigationDock(navigation, self)
+        self.navigation_panel = self.navigation_dock.panel
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.navigation_dock)
         self.navigation_dock.setVisible(read_ui_state().get(VISIBLE_STATE) is not False)
         toggle = self.navigation_dock.toggleViewAction()
@@ -268,9 +301,10 @@ def start_editor(debug_mode: bool = False, theme: str | None = None, **kwargs) -
     """
     Start editor instance
     :param debug_mode: enable debug mode with auto-close timer
-    :param theme: qt_material theme name (e.g. "dark_teal.xml", "light_blue.xml"). It replaces
-        the theme picked from UI Style, and is kept as the picked one. ``None`` starts with the
-        picked theme, ``dark_amber.xml`` until one is picked
+    :param theme: a theme of JEditor's own ("jeditor_dark", "jeditor_light") or a qt_material
+        theme name (e.g. "dark_teal.xml", "light_blue.xml"). It replaces the theme picked from
+        UI Style, and is kept as the picked one. ``None`` starts with the picked theme, JEditor's
+        default until one is picked
     :return: None
     """
     new_ide = QCoreApplication.instance()
@@ -297,8 +331,8 @@ def open_main_window(app: QApplication, debug_mode: bool = False, theme: str | N
 
     :param app: the running application, which the theme is applied to
     :param debug_mode: close by itself after a while, as the startup tests need
-    :param theme: qt_material theme name, which replaces the one picked from UI Style and is
-        kept as the picked one; ``None`` keeps the picked one
+    :param theme: a JEditor or qt_material theme name, which replaces the one picked from UI
+        Style and is kept as the picked one; ``None`` keeps the picked one
     :return: the window, which the caller keeps for as long as the IDE runs
     """
     window = PyBreezeMainWindow(debug_mode=debug_mode, **kwargs)
@@ -322,4 +356,9 @@ def _apply_given_theme(app: QApplication, window: PyBreezeMainWindow, theme: str
     # a bad one is logged, and the theme is still applied.
     except (OSError, ValueError, TypeError, KeyError, RuntimeError) as error:
         pybreeze_logger.error("Startup setting error: %r", error)
-        apply_stylesheet(app, theme=theme)
+        apply_style = getattr(window, "apply_style", None)
+        if callable(apply_style):
+            # JEditor applies its own themes and qt_material's alike, with the editor's colours
+            apply_style(theme)
+        else:
+            apply_stylesheet(app, theme=theme)
