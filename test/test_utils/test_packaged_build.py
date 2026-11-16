@@ -124,6 +124,13 @@ class TestTheBuildCommand:
         assert {"--include-package=pybreeze", "--include-package=je_editor"} <= set(command)
         assert command[-1].endswith("start_pybreeze.py")
 
+    def test_the_generated_api_clients_are_left_as_bytecode(self, build):
+        # dropbox.team ran MSVC out of heap space; the rest took most of three hours
+        command = build.nuitka_command()
+
+        assert "--noinclude-custom-mode=dropbox:bytecode" in command
+        assert {f"--noinclude-custom-mode={package}:bytecode" for package in ("anthropic", "openai")} <= set(command)
+
     def test_it_never_asks_a_question_ci_could_not_answer(self, build):
         assert "--assume-yes-for-downloads" in build.nuitka_command()
 

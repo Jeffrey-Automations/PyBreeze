@@ -33,6 +33,15 @@ _BUILD_DIR = _EXE_DIR / "build"
 _ICON = _ROOT / "pybreeze" / "pybreeze_ui" / "editor_main" / "pybreeze_icon.ico"
 #: Where the executable lands
 DIST_DIR = _BUILD_DIR / "start_pybreeze.dist"
+#: Packages shipped as bytecode rather than compiled to C: the generated API
+#: clients the automation packages and the AI panels bring. They hold thousands
+#: of modules that gain nothing from compiling (they wait on the network), and
+#: one of them, ``dropbox.team``, is so large that MSVC ran out of heap space on
+#: it. Compiled, they were most of a build that took nearly three hours.
+BYTECODE_PACKAGES = (
+    "anthropic", "openai", "langsmith", "box_sdk_gen", "dropbox", "azure", "botocore", "boto3",
+    "googleapiclient",
+)
 
 
 def nuitka_command() -> list[str]:
@@ -51,6 +60,7 @@ def nuitka_command() -> list[str]:
         "--output-filename=PyBreeze",
         f"--output-dir={_BUILD_DIR}",
         f"--report={_BUILD_DIR / 'compilation-report.xml'}",
+        *(f"--noinclude-custom-mode={package}:bytecode" for package in BYTECODE_PACKAGES),
     ]
     if sys.platform == "win32":
         command.append(f"--windows-icon-from-ico={_ICON}")
