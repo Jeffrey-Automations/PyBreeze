@@ -25,6 +25,7 @@ from pybreeze.utils.exception.exception_tags import (
 )
 from pybreeze.utils.exception.exceptions import RegexTesterException
 from pybreeze.utils.logging.logger import pybreeze_logger
+from pybreeze.utils.packaged_build import is_packaged
 from pybreeze.utils.subprocess_util import child_environment, no_window_creationflags
 
 # Cap on reported matches, so a pattern that matches everywhere cannot flood
@@ -240,7 +241,7 @@ def find_matches_bounded(
     :raises RegexTesterException: when the pattern is empty or invalid, or ran too long
     """
     compile_pattern(pattern, flag_names)
-    if getattr(sys, "frozen", False):
+    if is_packaged():
         return _find_in_spawned_process(pattern, text, list(flag_names or []), timeout_seconds)
     job = json.dumps({"pattern": pattern, "text": text, "flags": build_flags(flag_names or []),
                       "limit": MAX_MATCHES}).encode("utf-8")
