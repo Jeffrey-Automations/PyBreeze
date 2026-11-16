@@ -130,9 +130,12 @@ the same keywords. See :doc:`tutorials/t09_keywords_language_service`.
 MCP Client
 ----------
 
-**MCP Client Tab** connects to Model Context Protocol servers started as local programs.
-Servers are set up once (a name, the command one argument a line, environment
-variables, a time limit) and kept in ``~/.pybreeze/mcp_servers.json``. The tab lists a
+**MCP Client Tab** connects to Model Context Protocol servers started as local programs,
+or already running at an ``http`` / ``https`` URL (Streamable HTTP). Servers are set up
+once (a name, the command one argument a line and its environment variables, or the URL
+and its request headers, a time limit) and kept in ``~/.pybreeze/mcp_servers.json``. A
+server at an address on this machine or a private network is asked about before the
+first connection, naming the address. The tab lists a
 connected server's tools, resources and prompts. A tool call is asked about before it
 is sent, with its arguments, unless that tool of that server was trusted; a server
 named by a project's ``.mcp.json`` is never started without being asked about. Calls

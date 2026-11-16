@@ -76,7 +76,7 @@ TRADITIONAL_CHINESE_INTEGRATION_WORDS: dict[str, str] = {
     "mcp_profile_folder_label": "啟動位置：",
     "mcp_profile_browse_button": "瀏覽...",
     "mcp_profile_timeout_label": "每個請求最多等幾秒：",
-    "mcp_profile_environment_label": "環境變數：",
+    "mcp_profile_environment_label": "環境變數（網址的伺服器則是請求標頭）：",
     "mcp_profile_environment_note":
         "金鑰與 token 請放在這裡，不要放在指令裡：啟動伺服器時會顯示指令，但不會顯示這些值。它們存在只有你能讀的檔案裡，不會寫進記錄檔，也不會出現在匯出的工作階段。",
     "mcp_profile_variable_name": "名稱",
@@ -86,7 +86,17 @@ TRADITIONAL_CHINESE_INTEGRATION_WORDS: dict[str, str] = {
     "mcp_profile_show_values": "顯示值",
     "mcp_profile_needs_name": "伺服器需要一個名稱",
     "mcp_profile_name_taken": "已經有另一個伺服器用了這個名稱",
-    "mcp_profile_needs_command": "伺服器需要一個指令：啟動它的程式",
+    "mcp_profile_needs_command": "伺服器需要一個指令（啟動它的程式），或它所在的網址",
+    "mcp_profile_url_label": "或它的網址：",
+    "mcp_profile_url_placeholder": "https://...，給已經在執行的伺服器（指令請留空）",
+    "mcp_profile_command_or_url": "伺服器要嘛有指令，要嘛有網址，不能兩個都有",
+    "mcp_profile_bad_url": "網址必須以 http:// 或 https:// 開頭，標頭的名稱與值也必須是可以送出的",
+    "mcp_found_url_question":
+        "{name} 來自專案資料夾裡的檔案（.mcp.json），不是你自己的伺服器。連線之後，你的工具呼叫會送到它那裡。要連到這個位址嗎？",
+    "mcp_local_endpoint_question": (
+        "{host} 位於這台電腦或你的私有網路（{addresses}）。\n\n"
+        "那裡的 MCP 伺服器會收到你的工具呼叫、它們的引數，以及你設定的請求標頭。要連線嗎？\n\n"
+        "在分頁關閉之前，這個位址不會再問一次。"),
     # Report viewer
     "extend_tools_menu_report_viewer_tab_action": "報告檢視器分頁",
     "extend_tools_menu_report_viewer_tab_label": "報告檢視器",

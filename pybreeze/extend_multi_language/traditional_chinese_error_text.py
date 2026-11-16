@@ -97,6 +97,8 @@ TRADITIONAL_CHINESE_ERROR_TEXT: dict[str, str] = {
     "error_text_language_metadata_shape_error":
         "{framework} 對自己關鍵字的描述，不是這一版 PyBreeze 讀得懂的形式",
     "error_text_mcp_profile_command_error": "MCP 伺服器 {name} 沒有可以啟動它的指令",
+    "error_text_mcp_profile_url_error": "MCP 伺服器 {name} 需要 http 或 https 的網址，而且不能同時有指令",
+    "error_text_mcp_profile_header_error": "MCP 伺服器 {name} 有一個無法送出的請求標頭：{header}",
     "error_text_mcp_profile_file_error": "這不是 MCP 伺服器清單（要是帶有 mcpServers 的 JSON 物件）",
     "error_text_mcp_start_error": "無法啟動 MCP 伺服器（{reason}）",
     "error_text_mcp_closed_error": "MCP 伺服器關閉了連線",

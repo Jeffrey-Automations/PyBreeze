@@ -108,6 +108,9 @@ class McpCallLog:
                 "name": server.name, "version": server.version, "protocolVersion": server.protocol_version,
                 "capabilities": sorted(server.capabilities)},
         }
+        if self._profile.is_remote:
+            # Where it was reached, without a query or credentials the URL may carry
+            raw["url"] = self._profile.shown_url()
         return ExecutionReport(
             framework=FRAMEWORK, results=tuple(self._results), name=self._profile.name, started=started,
             duration=max(ends) - started if started is not None and ends else None, raw=raw)

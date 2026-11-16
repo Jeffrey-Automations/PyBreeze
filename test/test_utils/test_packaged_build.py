@@ -129,13 +129,20 @@ class TestTheBuildCommand:
             self, build, monkeypatch):
         # Compiled, the third-party packages took longer than CI allows
         installed = {"pybreeze": [], "je_editor": [], "PySide6": [], "shiboken6": [], "dropbox": [],
-                     "je_auto_control": [], "_distutils_hack": [], "__editable___x": [], "not-a-name": []}
+                     "je_auto_control": [], "_distutils_hack": [], "__editable___x": [], "not-a-name": [],
+                     "gevent": [], "anyio": [], "pkg_resources": []}
         monkeypatch.setattr(build, "packages_distributions", lambda: installed)
 
         command = build.nuitka_command()
 
         bytecode = sorted(part.split("=", 1)[1] for part in command if part.startswith("--noinclude-custom-mode="))
         assert bytecode == ["dropbox:bytecode", "je_auto_control:bytecode"]
+
+    def test_a_package_nuitka_attaches_load_code_to_stays_compiled(self, build):
+        # Shipped as bytecode, its load code became an uncompiled module and Nuitka 4.3.5 failed on it
+        assert {"gevent", "anyio", "pkg_resources", "win32file"} <= build.LOAD_CODE_PACKAGES
+        assert not {f"--noinclude-custom-mode={package}:bytecode" for package in build.LOAD_CODE_PACKAGES} & set(
+            build.nuitka_command())
 
     def test_the_command_fits_on_a_windows_command_line(self, build):
         # Every installed package is named on it; Windows takes at most 32,767 characters

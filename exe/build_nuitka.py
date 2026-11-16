@@ -41,13 +41,24 @@ DIST_DIR = _BUILD_DIR / "start_pybreeze.dist"
 #: and failed on ``dropbox.team``, too large for MSVC's heap, and a second, with
 #: only the API clients left as bytecode, was still compiling C after three hours.
 COMPILED_PACKAGES = frozenset({"pybreeze", "je_editor", "PySide6", "shiboken6", "Shiboken", "nuitka"})
+#: Packages Nuitka's own plugins attach code to as one of their modules loads
+#: (``createPreModuleLoadCode`` / ``createPostModuleLoadCode`` in Nuitka 4.3.5, and
+#: ``pre-import-code`` / ``post-import-code`` in its package configuration). Nuitka
+#: builds that code as a module named after the one it belongs to, so in a package
+#: shipped as bytecode it becomes an uncompiled module, and Nuitka 4.3.5 then fails
+#: with ``AttributeError: 'UncompiledPythonModule' object has no attribute
+#: 'getCompilationMode'``. They stay compiled.
+LOAD_CODE_PACKAGES = frozenset({
+    "gevent", "anyio", "pkg_resources", "matplotlib", "gi", "glfw", "pbr", "win32file", "win32ui",
+    "PySide2", "scipy", "pyscf", "unstructured",
+})
 
 
 def bytecode_packages() -> list[str]:
     """The installed top-level packages that are shipped as bytecode: all but ``COMPILED_PACKAGES``."""
     return sorted(
         name for name in packages_distributions()
-        if name.isidentifier() and not name.startswith("_") and name not in COMPILED_PACKAGES)
+        if name.isidentifier() and not name.startswith("_") and name not in COMPILED_PACKAGES | LOAD_CODE_PACKAGES)
 
 
 def nuitka_command() -> list[str]:

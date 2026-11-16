@@ -1,10 +1,12 @@
-"""The window an MCP server is set up in: its name, the command that starts it, and what it needs.
+"""The window an MCP server is set up in: its name, the command that starts it or its URL, and what it needs.
 
 The command is written one argument a line, the program first, so that no
 quoting rule stands between what is typed and what is run: each line is one
-argument, exactly. Keys and tokens go in the environment table, whose values
-are shown as dots; the command is shown again whenever the server is started,
-and those values never are.
+argument, exactly. A server already running somewhere is given its URL instead.
+Keys and tokens go in the table, whose values are shown as dots: for a command
+they are its environment variables, for a URL the request headers it is sent
+(``Authorization``, say). The command or the URL is shown again whenever the
+server is started, and those values never are.
 """
 from __future__ import annotations
 
@@ -19,6 +21,7 @@ from je_editor import language_wrapper
 from pybreeze.pybreeze_ui.design.panels import wrapping_row
 from pybreeze.pybreeze_ui.exact_text import exact_text
 from pybreeze.pybreeze_ui.fixed_pitch import use_fixed_pitch_font
+from pybreeze.utils.exception.exceptions import McpException
 from pybreeze.utils.mcp.mcp_profile import McpServerProfile
 
 _NAME, _VALUE = range(2)
@@ -68,6 +71,8 @@ class McpProfileDialog(QDialog):
         self.command_edit = QPlainTextEdit("\n".join(profile.command) if profile is not None else "")
         self.command_edit.setPlaceholderText(_word("mcp_profile_command_placeholder"))
         use_fixed_pitch_font(self.command_edit)
+        self.url_edit = QLineEdit(profile.url if profile is not None else "")
+        self.url_edit.setPlaceholderText(_word("mcp_profile_url_placeholder"))
         self.folder_edit = QLineEdit(profile.working_directory if profile is not None else "")
         self.browse_button = QPushButton(_word("mcp_profile_browse_button"))
         self.browse_button.clicked.connect(self._choose_folder)
@@ -81,7 +86,8 @@ class McpProfileDialog(QDialog):
         self.environment_table.horizontalHeader().setStretchLastSection(True)
         self._values = _HiddenValue(self.environment_table)
         self.environment_table.setItemDelegateForColumn(_VALUE, self._values)
-        for name, value in (profile.environment.items() if profile is not None else ()):
+        given = (profile.headers if profile.is_remote else profile.environment) if profile is not None else {}
+        for name, value in given.items():
             self._add_variable(name, value)
         self.add_variable_button = QPushButton(_word("mcp_profile_add_variable_button"))
         self.add_variable_button.clicked.connect(self._add_variable)
@@ -93,6 +99,7 @@ class McpProfileDialog(QDialog):
         form = QFormLayout()
         form.addRow(_word("mcp_profile_name_label"), self.name_edit)
         form.addRow(_word("mcp_profile_command_label"), self.command_edit)
+        form.addRow(_word("mcp_profile_url_label"), self.url_edit)
         form.addRow(_word("mcp_profile_folder_label"), wrapping_row(self.folder_edit, self.browse_button))
         form.addRow(_word("mcp_profile_timeout_label"), self.timeout_spin)
         # The note is PyBreeze's own words
@@ -135,8 +142,12 @@ class McpProfileDialog(QDialog):
         """The command as typed: one argument a line, lines with nothing on them left out."""
         return tuple(line for line in exact_text(self.command_edit).split("\n") if line.strip())
 
+    def url(self) -> str:
+        """The URL as typed, without the spaces around it."""
+        return self.url_edit.text().strip()
+
     def environment(self) -> dict[str, str]:
-        """The variables of the table; a row without a name is left out."""
+        """The names and values of the table; a row without a name is left out."""
         variables = {}
         for row in range(self.environment_table.rowCount()):
             name, value = self.environment_table.item(row, _NAME), self.environment_table.item(row, _VALUE)
@@ -151,8 +162,20 @@ class McpProfileDialog(QDialog):
             return "mcp_profile_needs_name"
         if name in self._taken_names:
             return "mcp_profile_name_taken"
+        if self.command() and self.url():
+            return "mcp_profile_command_or_url"
+        if self.url():
+            return self._url_problem()
         if not self.command():
             return "mcp_profile_needs_command"
+        return None
+
+    def _url_problem(self) -> str | None:
+        """The language key of what keeps the URL and the headers from being used, or ``None``."""
+        try:
+            McpServerProfile(name="check", url=self.url(), headers=self.environment())
+        except McpException:
+            return "mcp_profile_bad_url"
         return None
 
     def accept(self) -> None:
@@ -170,7 +193,11 @@ class McpProfileDialog(QDialog):
 
     def profile(self) -> McpServerProfile:
         """The server as it is set up now; what the user had decided about its tools is kept."""
+        trusted = self._editing.trusted_tools if self._editing is not None else frozenset()
+        name, timeout = self.name_edit.text().strip(), float(self.timeout_spin.value())
+        if self.url():
+            return McpServerProfile(name=name, url=self.url(), headers=self.environment(), timeout_seconds=timeout,
+                                    trusted_tools=trusted)
         return McpServerProfile(
-            name=self.name_edit.text().strip(), command=self.command(), environment=self.environment(),
-            working_directory=self.folder_edit.text().strip(), timeout_seconds=float(self.timeout_spin.value()),
-            trusted_tools=self._editing.trusted_tools if self._editing is not None else frozenset())
+            name=name, command=self.command(), environment=self.environment(),
+            working_directory=self.folder_edit.text().strip(), timeout_seconds=timeout, trusted_tools=trusted)
