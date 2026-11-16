@@ -25,6 +25,7 @@ from __future__ import annotations
 import os
 import subprocess  # nosec B404 — a fixed argument list, never a shell
 import sys
+from importlib.metadata import packages_distributions
 from pathlib import Path
 
 _EXE_DIR = Path(__file__).resolve().parent
@@ -33,15 +34,20 @@ _BUILD_DIR = _EXE_DIR / "build"
 _ICON = _ROOT / "pybreeze" / "pybreeze_ui" / "editor_main" / "pybreeze_icon.ico"
 #: Where the executable lands
 DIST_DIR = _BUILD_DIR / "start_pybreeze.dist"
-#: Packages shipped as bytecode rather than compiled to C: the generated API
-#: clients the automation packages and the AI panels bring. They hold thousands
-#: of modules that gain nothing from compiling (they wait on the network), and
-#: one of them, ``dropbox.team``, is so large that MSVC ran out of heap space on
-#: it. Compiled, they were most of a build that took nearly three hours.
-BYTECODE_PACKAGES = (
-    "anthropic", "openai", "langsmith", "box_sdk_gen", "dropbox", "azure", "botocore", "boto3",
-    "googleapiclient",
-)
+#: The packages compiled to C: PyBreeze, the editor it is built on, and Qt's
+#: bindings, which Nuitka's pyside6 plugin handles. Every other installed package
+#: is shipped as bytecode (``bytecode_packages()``). Compiled, the 12,000 modules
+#: they bring took longer than CI allows: a first build ran for nearly three hours
+#: and failed on ``dropbox.team``, too large for MSVC's heap, and a second, with
+#: only the API clients left as bytecode, was still compiling C after three hours.
+COMPILED_PACKAGES = frozenset({"pybreeze", "je_editor", "PySide6", "shiboken6", "Shiboken", "nuitka"})
+
+
+def bytecode_packages() -> list[str]:
+    """The installed top-level packages that are shipped as bytecode: all but ``COMPILED_PACKAGES``."""
+    return sorted(
+        name for name in packages_distributions()
+        if name.isidentifier() and not name.startswith("_") and name not in COMPILED_PACKAGES)
 
 
 def nuitka_command() -> list[str]:
@@ -60,7 +66,7 @@ def nuitka_command() -> list[str]:
         "--output-filename=PyBreeze",
         f"--output-dir={_BUILD_DIR}",
         f"--report={_BUILD_DIR / 'compilation-report.xml'}",
-        *(f"--noinclude-custom-mode={package}:bytecode" for package in BYTECODE_PACKAGES),
+        *(f"--noinclude-custom-mode={package}:bytecode" for package in bytecode_packages()),
     ]
     if sys.platform == "win32":
         command.append(f"--windows-icon-from-ico={_ICON}")

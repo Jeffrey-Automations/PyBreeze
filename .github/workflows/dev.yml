@@ -120,7 +120,7 @@ jobs:
     # keeps the build for a week, to be tried on a real machine.
     name: Nuitka build
     runs-on: windows-latest
-    timeout-minutes: 180
+    timeout-minutes: 300
     env:
       NUITKA_CACHE_DIR: ${{ github.workspace }}\.nuitka-cache
     steps:
@@ -137,7 +137,8 @@ jobs:
           dev_requirements.txt
     - name: Restore Nuitka's cache
       # The C compiler's output and the downloads; a build without it takes several times longer
-      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+      id: nuitka-cache
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
       with:
         path: .nuitka-cache
         key: nuitka-${{ runner.os }}-py3.12-${{ hashFiles('requirements.txt', 'dev_requirements.txt', 'exe/build_nuitka.py') }}
@@ -147,7 +148,16 @@ jobs:
     - name: Install dev dependencies
       run: python -m pip install -r dev_requirements.txt
     - name: Build the executable
+      # Under the job's limit, so that a build too slow to finish still saves what it compiled
+      timeout-minutes: 240
       run: python exe/build_nuitka.py
+    - name: Save Nuitka's cache
+      # Even when the build failed or ran out of time: the next one starts from what this one compiled
+      if: always() && steps.nuitka-cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+      with:
+        path: .nuitka-cache
+        key: nuitka-${{ runner.os }}-py3.12-${{ hashFiles('requirements.txt', 'dev_requirements.txt', 'exe/build_nuitka.py') }}
     - name: Check the executable
       run: python exe/check_build.py exe/build/start_pybreeze.dist/PyBreeze.exe
     - name: Upload the compilation report
