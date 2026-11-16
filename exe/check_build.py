@@ -59,6 +59,12 @@ def _read_message(stream) -> dict | None:
     return json.loads(stream.read(length).decode("utf-8"))
 
 
+def _require(holds: bool, why: str) -> None:
+    """Fail the check with *why* unless *holds*; a plain ``assert`` would vanish under ``python -O``."""
+    if not holds:
+        raise AssertionError(why)
+
+
 def _in_time(work, seconds: float):
     """Run *work* on a thread; its result, or ``TimeoutError`` when it takes longer than *seconds*."""
     results: queue.Queue = queue.Queue()
@@ -75,9 +81,9 @@ def check_build_info(executable: Path) -> str:
         [str(executable), "--build-info"], capture_output=True, timeout=_ANSWER_SECONDS,
         check=False, shell=False)
     lines = [line for line in done.stdout.decode("utf-8", errors="replace").splitlines() if line.startswith("{")]
-    assert done.returncode == 0 and lines, f"exit {done.returncode}: {_tail(done.stderr)}"
+    _require(done.returncode == 0 and lines, f"exit {done.returncode}: {_tail(done.stderr)}")
     info = json.loads(lines[-1])
-    assert info.get("packaged") is True, f"the build does not know it is packaged: {info}"
+    _require(info.get("packaged") is True, f"the build does not know it is packaged: {info}")
     return f"packaged, sys.executable is {info.get('executable')}"
 
 
@@ -91,12 +97,12 @@ def check_language_server(executable: Path) -> str:
                                     "params": {"processId": None, "rootUri": None, "capabilities": {}}}))
         server.stdin.flush()
         reply = _in_time(lambda: _read_message(server.stdout), _ANSWER_SECONDS)
-        assert reply and reply.get("id") == 1 and "capabilities" in reply.get("result", {}), f"answered {reply}"
+        _require(reply and reply.get("id") == 1 and "capabilities" in reply.get("result", {}), f"answered {reply}")
         server.stdin.write(_encode({"jsonrpc": "2.0", "id": 2, "method": "shutdown"}))
         server.stdin.write(_encode({"jsonrpc": "2.0", "method": "exit"}))
         server.stdin.flush()
         code = server.wait(_ANSWER_SECONDS)
-        assert code == 0, f"ended with {code}"
+        _require(code == 0, f"ended with {code}")
         return str(reply["result"].get("serverInfo", {}).get("name", "answered"))
     finally:
         if server.poll() is None:
@@ -107,7 +113,7 @@ def check_language_server(executable: Path) -> str:
 
 def check_ide_starts(executable: Path) -> str:
     """The IDE starts and stays up; how long it was watched, or ``AssertionError``."""
-    with tempfile.TemporaryDirectory() as home:
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as home:
         log = Path(home) / "stderr.txt"
         environment = {**os.environ, "QT_QPA_PLATFORM": "offscreen", "USERPROFILE": home, "HOME": home}
         with log.open("wb") as errors:
@@ -121,7 +127,7 @@ def check_ide_starts(executable: Path) -> str:
                 code = ide.poll()
             finally:
                 _stop_tree(ide)
-        assert code is None, f"the IDE ended with {code}: {_tail(log.read_bytes())}"
+        _require(code is None, f"the IDE ended with {code}: {_tail(log.read_bytes())}")
     return f"still running after {_IDE_UP_SECONDS} s"
 
 
@@ -134,7 +140,8 @@ def _stop_tree(process: subprocess.Popen) -> None:
         subprocess.run(  # nosec B603  # nosemgrep — fixed argument list, no shell
             [str(taskkill), "/T", "/F", "/PID", str(process.pid)], capture_output=True,
             timeout=_STOP_SECONDS, check=False, shell=False)
-    else:
+    # taskkill can be refused, and on other systems there is no tree to end: the process itself then
+    if process.poll() is None:
         process.kill()
     process.wait(_STOP_SECONDS)
 
