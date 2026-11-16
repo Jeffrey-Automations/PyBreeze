@@ -9,6 +9,7 @@ from __future__ import annotations
 import importlib.util
 import io
 import json
+import subprocess
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -124,12 +125,21 @@ class TestTheBuildCommand:
         assert {"--include-package=pybreeze", "--include-package=je_editor"} <= set(command)
         assert command[-1].endswith("start_pybreeze.py")
 
-    def test_the_generated_api_clients_are_left_as_bytecode(self, build):
-        # dropbox.team ran MSVC out of heap space; the rest took most of three hours
+    def test_only_pybreeze_jeditor_and_qt_are_compiled_and_every_other_package_is_bytecode(
+            self, build, monkeypatch):
+        # Compiled, the third-party packages took longer than CI allows
+        installed = {"pybreeze": [], "je_editor": [], "PySide6": [], "shiboken6": [], "dropbox": [],
+                     "je_auto_control": [], "_distutils_hack": [], "__editable___x": [], "not-a-name": []}
+        monkeypatch.setattr(build, "packages_distributions", lambda: installed)
+
         command = build.nuitka_command()
 
-        assert "--noinclude-custom-mode=dropbox:bytecode" in command
-        assert {f"--noinclude-custom-mode={package}:bytecode" for package in ("anthropic", "openai")} <= set(command)
+        bytecode = sorted(part.split("=", 1)[1] for part in command if part.startswith("--noinclude-custom-mode="))
+        assert bytecode == ["dropbox:bytecode", "je_auto_control:bytecode"]
+
+    def test_the_command_fits_on_a_windows_command_line(self, build):
+        # Every installed package is named on it; Windows takes at most 32,767 characters
+        assert len(subprocess.list2cmdline(build.nuitka_command())) < 32767
 
     def test_it_never_asks_a_question_ci_could_not_answer(self, build):
         assert "--assume-yes-for-downloads" in build.nuitka_command()
