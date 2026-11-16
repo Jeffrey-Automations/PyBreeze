@@ -39,6 +39,7 @@ from je_editor import language_wrapper
 from pybreeze.pybreeze_ui.design.panels import StatusLine
 from pybreeze.pybreeze_ui.design.tokens import State
 from pybreeze.pybreeze_ui.error_text import error_text
+from pybreeze.pybreeze_ui.local_endpoint import LocalEndpointGate
 from pybreeze.pybreeze_ui.mcp_gui.mcp_panels import McpCallsPanel, McpItemsPanel, McpToolsPanel
 from pybreeze.pybreeze_ui.mcp_gui.mcp_server_panel import McpServerPanel
 from pybreeze.pybreeze_ui.mcp_gui.mcp_worker import McpWorker
@@ -50,6 +51,7 @@ from pybreeze.utils.file_process.replace_file import replace_text
 from pybreeze.utils.json_format.view_safe import dumps_for_view
 from pybreeze.utils.logging.logger import pybreeze_logger
 from pybreeze.utils.mcp.mcp_call_log import McpCallLog
+from pybreeze.utils.mcp.mcp_http_transport import McpLocalAddressError
 from pybreeze.utils.mcp.mcp_client import (
     McpClient, McpPrompt, McpResource, McpServerInfo, McpTool, McpToolResult, changed_list,
 )
@@ -209,6 +211,8 @@ class McpClientGUI(QWidget):
         self._refresh_timer.setInterval(_REFRESH_DELAY_MS)
         self._refresh_timer.timeout.connect(self._refresh_stale)
         self.list_changed.connect(self._note_changed)
+        # What the user allowed servers at a URL to be reached at on this machine or a private network
+        self.local_gate = LocalEndpointGate(self, "mcp_local_endpoint_question")
 
         self.server_panel = McpServerPanel(Path.cwd())
         self.server_panel.connect_asked.connect(self.connect_server)
@@ -281,7 +285,17 @@ class McpClientGUI(QWidget):
         self._cancel.set()
 
     def _failed(self, error: McpException) -> None:
-        """Something asked of the server did not go through: say why, and keep a tool call that failed in the log."""
+        """Something asked of the server did not go through: say why, and keep a tool call that failed in the log.
+
+        A server at a URL on this machine or a private network is asked about
+        instead, and connected to again on a yes.
+        """
+        if isinstance(error, McpLocalAddressError):
+            self._show_busy(False)
+            self.local_gate.note(error.host, list(error.addresses))
+            if self.local_gate.confirm_pending():
+                self.connect_server()
+                return
         call, self._call = self._call, None
         if call is not None and self._log is not None:
             self._log.record_failure(call.tool, call.arguments, call.started, time.monotonic() - call.timer, error)
@@ -312,7 +326,7 @@ class McpClientGUI(QWidget):
             return False
         self._let_go()
         self._show_offer(None)
-        client = McpClient(profile, _client_version())
+        client = McpClient(profile, _client_version(), allowed_local=self.local_gate.allowed_for(profile.url))
         client.on_notification = _hearing(weakref.ref(self), weakref.ref(client))
         self._client = client
         self._start(lambda: _opened(client, profile), self._connected,
@@ -324,8 +338,13 @@ class McpClientGUI(QWidget):
         word = language_wrapper.language_word_dict
         box = QMessageBox(QMessageBox.Icon.Question, word.get("mcp_found_title"), "", parent=self)
         box.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
-        box.setText(as_text(word.get("mcp_found_question").format(name=profile.name)))
-        box.setInformativeText(as_text("\n".join(profile.command)))
+        if profile.is_remote:
+            # What it would be connected to, without a query or credentials the URL may carry
+            box.setText(as_text(word.get("mcp_found_url_question").format(name=profile.name)))
+            box.setInformativeText(as_text(profile.shown_url()))
+        else:
+            box.setText(as_text(word.get("mcp_found_question").format(name=profile.name)))
+            box.setInformativeText(as_text("\n".join(profile.command)))
         box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         box.setDefaultButton(QMessageBox.StandardButton.No)
         return box.exec() == QMessageBox.StandardButton.Yes

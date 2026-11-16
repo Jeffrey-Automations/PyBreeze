@@ -60,7 +60,7 @@ project someone else wrote. That is what the decisions below are about.
 - **The HTTP transport as well.** Most HTTP servers of this kind run on the same machine, and the
   project's rule for outbound requests refuses loopback and private addresses (CLAUDE.md, Network).
   Allowing them here is a decision about that rule, not about MCP: it is left open
-  (`progress.md`).
+  (`progress.md`). Decided later: [0013](0013-mcp-over-http.md).
 - **Offering the server sampling, roots or elicitation.** Each lets a server ask something of the
   user's side. The client declares none and refuses such requests; a ping is answered.
 - **Starting a project's servers when the project is opened**, as some clients do after one

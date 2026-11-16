@@ -78,7 +78,7 @@ ENGLISH_INTEGRATION_WORDS: dict[str, str] = {
     "mcp_profile_folder_label": "Start in:",
     "mcp_profile_browse_button": "Browse...",
     "mcp_profile_timeout_label": "Seconds a request may take:",
-    "mcp_profile_environment_label": "Environment variables:",
+    "mcp_profile_environment_label": "Environment variables (request headers for a URL):",
     "mcp_profile_environment_note":
         "Keys and tokens go here, not in the command: the command is shown when the server is started, and these values are not. They are kept in a file only you can read, and left out of the log and of exported sessions.",
     "mcp_profile_variable_name": "Name",
@@ -88,7 +88,17 @@ ENGLISH_INTEGRATION_WORDS: dict[str, str] = {
     "mcp_profile_show_values": "Show values",
     "mcp_profile_needs_name": "A server needs a name",
     "mcp_profile_name_taken": "Another server already has that name",
-    "mcp_profile_needs_command": "A server needs a command: the program that starts it",
+    "mcp_profile_needs_command": "A server needs a command, the program that starts it, or the URL it runs at",
+    "mcp_profile_url_label": "Or its URL:",
+    "mcp_profile_url_placeholder": "https://... for a server already running (leave the command empty)",
+    "mcp_profile_command_or_url": "A server has a command or a URL, not both",
+    "mcp_profile_bad_url": "The URL has to start with http:// or https://, and the header names and values have to be ones that can be sent",
+    "mcp_found_url_question":
+        "{name} comes from a file in the project folder (.mcp.json), not from your own servers. Connecting sends it your tool calls. Connect to this address?",
+    "mcp_local_endpoint_question": (
+        "{host} is on this machine or your private network ({addresses}).\n\n"
+        "The MCP server there will be sent your tool calls, their arguments and the request headers you set up. Connect to it?\n\n"
+        "The answer holds for this address until the tab is closed."),
     # Report viewer
     "extend_tools_menu_report_viewer_tab_action": "Report Viewer Tab",
     "extend_tools_menu_report_viewer_tab_label": "Report Viewer",

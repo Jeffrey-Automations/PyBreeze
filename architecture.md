@@ -224,7 +224,7 @@ MCP Client → Calls → Open in Report Viewer → ReportViewerGUI.show_report(M
   A tool that has a run of its own hands it over with `ReportViewerGUI.show_report(report)` (`docs/adr/0012`).
 - **A further MCP transport**: a class with `start()`, `send(message)`, `close()` and `log_tail()` that calls
   back with each message and once when the server is gone, given to `McpClient(profile, version, transport)`
-  (`utils/mcp/mcp_transport.py`, `docs/adr/0011`).
+  (`utils/mcp/mcp_transport.py`, `mcp_http_transport.py`, `docs/adr/0011`, `0013`).
 - **A further framework for the language service**: one `FrameworkProfile` in
   `utils/language_service/framework_profiles.py` (its package, its key in an object-shaped script, its
   executor module, its keywords' prefix). The adapter, the server and the Automation Keywords tab read
@@ -321,10 +321,11 @@ MCP Client → Calls → Open in Report Viewer → ReportViewerGUI.show_report(M
   XML (`testsuites` / `testsuite` / `testcase`), or an HTML page whose data block
   `<script type="application/json" id="pybreeze-execution-report">` carries the report.
 - **MCP servers**: the client (`utils/mcp/mcp_client.py`) speaks protocol revisions `2025-06-18`, `2025-03-26`
-  and `2024-11-05` over the standard-input-and-output transport, and uses `initialize`,
+  and `2024-11-05` over the standard-input-and-output transport and Streamable HTTP (a `POST` a message,
+  `Mcp-Session-Id`, `MCP-Protocol-Version`, a `GET` stream, `DELETE` on close), and uses `initialize`,
   `notifications/initialized`, `tools/list`, `tools/call`, `resources/list`, `resources/read`, `prompts/list`,
   `prompts/get`, `ping` and `notifications/cancelled`. It reads the servers file other clients write
-  (`mcpServers`: `command`, `args`, `env`) from `~/.pybreeze/mcp_servers.json` and, as servers found but not
+  (`mcpServers`: `command`, `args`, `env`, or `type`, `url`, `headers`) from `~/.pybreeze/mcp_servers.json` and, as servers found but not
   trusted, from a project's `.mcp.json`; PyBreeze's own fields there are `cwd`, `timeout` and `trustedTools`.
   A session exported from the tab is an `ExecutionReport` with `framework` `mcp`.
 - **MailThunder, in process**: the report mail (`extend/mail_thunder_extend/mail_thunder_setting.py`) imports

@@ -32,6 +32,7 @@ from pybreeze.utils.exception.exceptions import McpException
 from pybreeze.utils.logging.logger import pybreeze_logger
 from pybreeze.utils.mcp.mcp_profile import McpServerProfile
 from pybreeze.utils.mcp.mcp_redaction import redact_text
+from pybreeze.utils.mcp.mcp_http_transport import HttpTransport
 from pybreeze.utils.mcp.mcp_transport import McpClosed, StdioTransport
 
 # The protocol revisions this client speaks, the newest first: it offers the
@@ -187,13 +188,20 @@ class McpClient:
 
     :param profile: the server, and how long a request to it may take
     :param client_version: PyBreeze's version, told to the server
-    :param transport: what carries the messages; the standard-input-and-output one when not given
+    :param transport: what carries the messages; when not given, HTTP for a profile with a URL and the
+        standard input and output for one with a command
+    :param allowed_local: for a server at a URL, the addresses on this machine or a private network the user
+        allowed for its host
     """
 
-    def __init__(self, profile: McpServerProfile, client_version: str = "", transport: type = StdioTransport) -> None:
+    def __init__(self, profile: McpServerProfile, client_version: str = "", transport: type | None = None,
+                 allowed_local: frozenset[str] = frozenset()) -> None:
         self._profile = profile
         self._client_version = client_version
-        self._transport = transport(profile, self._received, self._lost)
+        if transport is None and profile.is_remote:
+            self._transport = HttpTransport(profile, self._received, self._lost, allowed_local)
+        else:
+            self._transport = (transport or StdioTransport)(profile, self._received, self._lost)
         self._waiting: dict[int, _Waiting] = {}
         self._guard = threading.Lock()
         self._next_id = 1
