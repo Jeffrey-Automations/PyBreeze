@@ -11,11 +11,10 @@
   要在實機上以 `pip install -r requirements.txt` 裝出 6.12.0，啟動 IDE 確認視窗、JupyterLab 分頁（QtWebEngine）與內嵌瀏覽器都正常；
   並量一次 `python -X importtime -c "import pybreeze.pybreeze_ui.editor_main.main_ui"`，把啟動時間補進 `architecture_explore.md`
   （JEditor 已不在啟動時匯入 AI 聊天面板與 IPython）。
-- **#153** 打包還沒有實際建出執行檔驗過。打包工具已改成 Nuitka（`exe/build_nuitka.py`，U-20261116-02），這個腳本是照 Nuitka 的選項寫的，沒有跑過；
-  打包版以 `PyBreeze --action-language-server` 啟動自己當語言伺服器（U-20261115-09），從原始碼以同一個進入點驗過（`test_language_server_launch.py`）。
-  程式以 `sys.frozen` 判斷是不是打包版（語言伺服器、regex 測試器的 worker、預設直譯器、關鍵字探測），要確認 Nuitka 的 standalone 建置有設定它。
-  `exe/automation_ide_setup_config.ifp`（InstallForge）仍指向舊名稱 AutomationIDE 與已不存在的檔案，建出執行檔後一併重做或刪除。要建一次，開一個動作腳本（`.json`）確認：
-  有診斷與關鍵字補全、沒有多開一個 IDE 視窗、關閉 IDE 後沒有留下 `PyBreeze.exe` 行程；在沒有任何 Python 的機器上，`.json` 檔仍會被告知是不是 JSON。
+- **#153** Nuitka 建出的執行檔還沒有在真正的機器上用過。CI 的 `nuitka-build` 會建置並檢查它（U-20261116-03）：知道自己是打包版、能當語言伺服器回應、IDE 在 offscreen 上能啟動；
+  但沒有人在螢幕上操作過。從 `dev` 最近一次執行的 artifact **PyBreeze-windows** 下載，在一台沒有裝 Python 的 Windows 上確認：視窗與主題正常、
+  開一個動作腳本（`.json`）有診斷與關鍵字補全、regex 測試器能跑、JupyterLab 分頁與內嵌瀏覽器（QtWebEngine）能開、關閉 IDE 後沒有留下 `PyBreeze.exe` 行程，
+  沒有任何 Python 時 `.json` 檔仍會被告知是不是 JSON。`exe/automation_ide_setup_config.ifp`（InstallForge）仍指向舊名稱 AutomationIDE 與已不存在的檔案，屆時一併重做或刪除。
 - **#152** 新版面還沒有在真正的螢幕上看過。導覽面板改成側邊欄的面板（U-20261115-01）之後，所有畫面都是以 offscreen 渲染擷取的。要在實機上確認：
   第一次啟動時側邊欄顯示導覽面板、活動列的指南針圖示可以切換、**檢視 ▸ 導覽** 有作用；切到檔案總管再關閉重開，會回到離開時的那個面板；
   JEditor Dark 與 JEditor Light 兩個主題下，PyBreeze 自己的工具分頁（cURL、HAR、JWT、Diff、SSH、AI、架構圖編輯器）文字與底色都看得清楚；
