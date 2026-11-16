@@ -24,7 +24,7 @@ their output reaches the UI through Queue + QTimer.
 | Path | Responsibility |
 | --- | --- |
 | `pybreeze/__init__.py` | Facade: `start_editor`, `PyBreezeMainWindow`, `EDITOR_EXTEND_TAB`, re-exported JEditor plugin functions |
-| `pybreeze/__main__.py`, `exe/start_pybreeze.py`, `exe/build_nuitka.py` | Launch scripts (module run, executable build) and the Nuitka command that builds the executable |
+| `pybreeze/__main__.py`, `exe/start_pybreeze.py`, `exe/build_nuitka.py`, `exe/check_build.py` | Launch scripts (module run, executable build), the Nuitka command that builds the executable, and the check CI runs on it |
 | `pybreeze/pybreeze_ui/editor_main/` | `PyBreezeMainWindow(EditorMain)`, `start_editor()`, file-tree context menu |
 | `pybreeze/pybreeze_ui/menu/` | Menu builders; `build_menubar.py` is the single entry. Holds `automation_menu/` (factory, per-package menus, TestPioneer, prthinker), `install_menu/`, `tools/tools_menu.py`, `plugin_menu/`, `extend_jeditor_tab_menu/` |
 | `pybreeze/pybreeze_ui/tools_gui/` | Thin tool tabs (cURL/HAR import, JWT, regex, diff, headers, …) backed by `pybreeze/utils/`; the JSON editor (`json_editor_gui.py`: a tree view, `json_tree_panel.py`, and a text view over one `JsonDocument`, with one undo history) |
@@ -46,7 +46,7 @@ their output reaches the UI through Queue + QTimer.
 | `pybreeze/utils/` | Pure logic, no Qt or JEditor (`test_utils_has_no_qt.py` guards it): request parsing and codegen, the registry of what a captured request can be generated as (`import_targets/`, with the request as it is sent, `NormalizedRequest`), the schema a run of any framework is reported in and what reads and writes it (`execution_report/`: the packages' record files, JUnit XML, an HTML page, a filter, an XML reader that refuses document types), the JSON document a text editor and a visual editor both edit (`json_format/json_document.py`) and the edits of its tree by path (`json_format/json_tree_edit.py`), the one way an editor asks a framework for completion and diagnostics and what answers it for the three frameworks' action scripts (`language_service/`: profiles, the keywords read from the installed package in a child process, the adapter, and a Language Server Protocol server), an MCP client over the standard transport with its server profiles, redaction and call log (`mcp/`), HTTP tools, `network/` SSRF validation, pinned connections and capped reads, exceptions, logging, `app_dirs.py`, `subprocess_util.py`, `terminal_text.py` (terminal escapes stripped for the SSH terminal and the run window), `terminal_style.py` (SGR colours read for the SSH terminal) |
 | `test/test_utils/` | Unit tests (pure logic and headless widgets). `test/unit_test/start_automation/` holds the launch tests |
 | `pyproject.toml`, `dev.toml` | Stable packaging (CI bumps and publishes it) and the dev-channel packaging: the same package under the name `pybreeze_dev` (`test_requirement_pins.py` and `test_dev_toml_parity.py` keep the two in step) |
-| `.github/workflows/`, `scripts/` | `dev.yml`, `stable.yml` (unit tests on a Windows matrix, the platform smoke tests on Linux and macOS, then SonarCloud and the upload to PyPI); `scripts/dev_release.py` numbers and gates the dev-channel release |
+| `.github/workflows/`, `scripts/` | `dev.yml`, `stable.yml` (unit tests on a Windows matrix, the platform smoke tests on Linux and macOS, then SonarCloud and the upload to PyPI; `dev.yml` also builds the executable with Nuitka and checks it); `scripts/dev_release.py` numbers and gates the dev-channel release |
 | `.github/requirements/` | `publish.in` and the lock made from it, `publish.txt`: `build`, `twine`, the build backend `setuptools` and what they need, each a version and a hash. The only thing the two publish jobs install (`test_workflow_actions.py`) |
 | `docs/`, `linux_package_source/`, `architecture_diagram/` | Sphinx docs (`docs/source/`: the reference pages and the tutorials, in two languages, with the examples the tutorials include in `docs/source/examples/`), the decision records of the shared contracts (`docs/adr/`) and the update log (`docs/updates/`); Debian package source; architecture image |
 
@@ -62,7 +62,8 @@ The layers are presentation (`pybreeze_ui/`), then execution (`extend/`), then f
   (`python -I -S -c`), so a launch script without the guard is safe. Both scripts first ask
   `extend/language_server/packaged_entry.served_instead()`: started with `--action-language-server`
   as its first argument the process is the action language server and opens no window, which is how
-  a packaged build, having no interpreter of its own, runs the server.
+  a packaged build, having no interpreter of its own, runs the server; with `--build-info` it prints
+  whether it counts as packaged (`utils/packaged_build.is_packaged()`) and ends.
 - **The action language server**: `python -m pybreeze.extend.language_server [--interpreter <python>]
   [--language <JEditor's name for it>]` speaks the Language Server Protocol on standard input and output
   for WebRunner, AutoControl and LoadDensity scripts (`.json`): `initialize`, `textDocument/didOpen`,

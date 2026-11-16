@@ -112,6 +112,70 @@ jobs:
       if: runner.os != 'Linux'
       run: python -m pytest test/test_utils/test_platform_smoke.py -v --tb=short
 
+  nuitka-build:
+    # The packaged executable: built as exe/build_nuitka.py builds it, then
+    # checked by exe/check_build.py (it knows it is packaged, it answers as the
+    # action language server, and the IDE starts). Nothing waits for this job:
+    # a build takes long, and publish-dev needs unit-tests alone. A push to dev
+    # keeps the build for a week, to be tried on a real machine.
+    name: Nuitka build
+    runs-on: windows-latest
+    timeout-minutes: 300
+    env:
+      NUITKA_CACHE_DIR: ${{ github.workspace }}\.nuitka-cache
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      with:
+        persist-credentials: false
+    - name: Set up Python
+      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+      with:
+        python-version: "3.12"
+        cache: pip
+        cache-dependency-path: |
+          requirements.txt
+          dev_requirements.txt
+    - name: Restore Nuitka's cache
+      # The C compiler's output and the downloads; a build without it takes several times longer
+      id: nuitka-cache
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+      with:
+        path: .nuitka-cache
+        key: nuitka-${{ runner.os }}-py3.12-${{ hashFiles('requirements.txt', 'dev_requirements.txt', 'exe/build_nuitka.py') }}
+        restore-keys: nuitka-${{ runner.os }}-py3.12-
+    - name: Update pip wheel setuptools
+      run: python -m pip install --upgrade pip setuptools wheel
+    - name: Install dev dependencies
+      run: python -m pip install -r dev_requirements.txt
+    - name: Build the executable
+      # Under the job's limit, so that a build too slow to finish still saves what it compiled
+      timeout-minutes: 240
+      run: python exe/build_nuitka.py
+    - name: Save Nuitka's cache
+      # Even when the build failed or ran out of time: the next one starts from what this one compiled
+      if: always() && steps.nuitka-cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+      with:
+        path: .nuitka-cache
+        key: nuitka-${{ runner.os }}-py3.12-${{ hashFiles('requirements.txt', 'dev_requirements.txt', 'exe/build_nuitka.py') }}
+    - name: Check the executable
+      run: python exe/check_build.py exe/build/start_pybreeze.dist/PyBreeze.exe
+    - name: Upload the compilation report
+      if: always()
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+      with:
+        name: nuitka-compilation-report
+        path: exe/build/compilation-report.xml
+        if-no-files-found: ignore
+    - name: Upload the executable
+      if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+      with:
+        name: PyBreeze-windows
+        path: exe/build/start_pybreeze.dist
+        retention-days: 7
+        if-no-files-found: error
+
   sonarcloud:
     # Pull requests only. SonarCloud's plan for this organization exposes results
     # for the main branch and for pull requests; an analysis pushed for `dev`

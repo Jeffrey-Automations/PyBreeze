@@ -33,6 +33,7 @@ from pybreeze.utils.exception.exceptions import LanguageServiceException
 from pybreeze.utils.language_service.framework_profiles import FrameworkProfile
 from pybreeze.utils.language_service.keyword_metadata import FrameworkMetadata, metadata_from_dict
 from pybreeze.utils.logging.logger import pybreeze_logger
+from pybreeze.utils.packaged_build import is_packaged
 from pybreeze.utils.subprocess_util import no_window_creationflags, utf8_subprocess_env
 
 # How long a framework may take to import and describe itself
@@ -139,7 +140,7 @@ def read_metadata(
     :raises LanguageServiceException: when the framework is not installed there,
         fails to import, takes too long, or answers something that is not metadata
     """
-    if interpreter is None and getattr(sys, "frozen", False):
+    if interpreter is None and is_packaged():
         # A packaged build's own executable is the IDE, not a Python: started
         # with the probe's arguments it would open another IDE
         raise LanguageServiceException(language_probe_no_interpreter_error.format(framework=profile.framework))

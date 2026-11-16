@@ -153,3 +153,6 @@ bing_cookies.*
 **/output
 .claude/settings.local.json
 /.claude/
+
+# Nuitka (exe/build_nuitka.py)
+.nuitka-cache/
