@@ -273,14 +273,12 @@ class TestTheWorkerProcess:
         assert not regex_tester._RUNNING
 
     def test_a_packaged_build_runs_the_pattern_in_a_spawned_worker(self, monkeypatch):
-        # With sys stood in for in the module only: the real sys.frozen would
-        # make multiprocessing hand this interpreter the frozen app's arguments
-        from types import SimpleNamespace
-
+        # Answered in the module only: the real sys.frozen would make
+        # multiprocessing hand this interpreter the frozen app's arguments
         from pybreeze.utils.regex_tools import regex_tester
 
         asked: list = []
-        monkeypatch.setattr(regex_tester, "sys", SimpleNamespace(frozen=True))
+        monkeypatch.setattr(regex_tester, "is_packaged", lambda: True)
         monkeypatch.setattr(regex_tester, "_find_in_spawned_process",
                             lambda *args: asked.append(args) or ["found"])
         monkeypatch.setattr(regex_tester, "_run_worker", lambda *_args: pytest.fail("a script was run"))

@@ -26,6 +26,7 @@ from pybreeze.extend.process_executor.queue_pump import (
 from pybreeze.pybreeze_ui.show_code_window.code_window import CodeWindow
 from pybreeze.extend.process_executor.run_notice import run_notice
 from pybreeze.utils.logging.logger import pybreeze_logger
+from pybreeze.utils.packaged_build import is_packaged
 from pybreeze.utils.subprocess_util import (
     no_window_creationflags, own_session_options, stop_tree, utf8_subprocess_env,
 )
@@ -68,7 +69,7 @@ def default_interpreter() -> str:
     :raises JEditorExecException: when a packaged build finds no Python
     """
     venv_path = find_venv_path()
-    if venv_path.is_dir() or getattr(sys, "frozen", False):
+    if venv_path.is_dir() or is_packaged():
         return check_and_choose_venv(venv_path)
     return sys.executable
 

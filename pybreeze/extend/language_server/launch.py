@@ -12,7 +12,8 @@ from pathlib import Path
 
 from je_editor.utils.lsp.language_servers import DEFAULT_SERVERS
 
-from pybreeze.extend.language_server.packaged_entry import SERVER_ARGUMENT, is_packaged
+from pybreeze.extend.language_server.packaged_entry import SERVER_ARGUMENT
+from pybreeze.utils.packaged_build import is_packaged
 
 # The files the server answers for
 ACTION_SCRIPT_SUFFIX = ".json"
