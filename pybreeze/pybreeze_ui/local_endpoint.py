@@ -53,11 +53,13 @@ class LocalEndpointGate(QObject):
     ``note`` is delivered on the UI thread and before the thread's ``finished``.
 
     :param parent: the panel, which the question is asked over
+    :param question_key: the language key of the question, with ``{host}`` and ``{addresses}`` in it
     """
 
-    def __init__(self, parent: QWidget) -> None:
+    def __init__(self, parent: QWidget, question_key: str = "local_endpoint_question") -> None:
         super().__init__(parent)
         self._panel = parent
+        self._question_key = question_key
         # host -> the addresses allowed for it
         self._allowed: dict[str, frozenset[str]] = {}
         # What the last request was refused for, until it is asked about
@@ -97,7 +99,7 @@ class LocalEndpointGate(QObject):
         box.setIcon(QMessageBox.Icon.Warning)
         box.setWindowTitle(word.get("local_endpoint_title"))
         # As text: the host is what the user typed, and must not be read as markup
-        box.setText(as_text(word.get("local_endpoint_question").format(host=host, addresses=", ".join(addresses))))
+        box.setText(as_text(word.get(self._question_key).format(host=host, addresses=", ".join(addresses))))
         box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         box.setDefaultButton(QMessageBox.StandardButton.No)
         return box.exec() == QMessageBox.StandardButton.Yes

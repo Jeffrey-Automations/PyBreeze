@@ -107,7 +107,9 @@ If it does not work
   and **Connect**.
 - A call does not come back: press **Cancel**. A server is given the seconds set in
   its profile (30 by default) before the call is given up on.
-- Servers reached over HTTP are not supported: only servers started as a local program.
+- A server at an address on this machine (``http://localhost:...``) is asked about before
+  the first connection: answer **Yes** to connect. A server that wants a token gets it as a
+  request header: give its URL in place of the command and put ``Authorization`` in the table.
 
 Next
 ----

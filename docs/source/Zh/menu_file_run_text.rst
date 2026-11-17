@@ -73,7 +73,8 @@ Run 選單
      - 只在有外掛註冊了執行設定時出現（見 :doc:`menu_plugins`）。
 
 Run Program、Run Debugger、**Python Env** 的項目與 PyBreeze 的自動化執行，都使用在
-**Python Env > Choose python interpreter** 選的直譯器。沒有選時，Run Program 與 Run Debugger 用工作資料夾中的
+**Python Env > Choose python interpreter** 選的直譯器。這個選擇會存在工作資料夾的設定裡，下次啟動時繼續使用；
+到時檔案已經不在（例如 ``venv`` 被刪除或重建）就略過，但仍保留在設定裡，等它回來。沒有選時，Run Program 與 Run Debugger 用工作資料夾中的
 ``venv/``，否則用 ``PATH`` 上的 Python；PyBreeze 的自動化執行與 JupyterLab 用那裡的 ``venv/`` 或 ``.venv/``，
 否則用執行 PyBreeze 的那個 Python。Run On Shell 不使用直譯器。
 

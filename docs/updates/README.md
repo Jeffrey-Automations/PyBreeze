@@ -58,6 +58,8 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | ID | Date | Title | Tags | Batch |
 |---|---|---|---|---|
+| U-20261117-01 | 2026-11-17 | The interpreter chosen under Python Env is kept between starts | #done #bugfix | [2026-11](2026-11.md) |
+| U-20261116-05 | 2026-11-16 | MCP servers at a URL (Streamable HTTP) | #done #mcp #security | [2026-11](2026-11.md) |
 | U-20261116-04 | 2026-11-16 | The Nuitka build compiles PyBreeze and JEditor only | #done #ci #packaging | [2026-11](2026-11.md) |
 | U-20261116-03 | 2026-11-16 | CI builds the executable with Nuitka and checks it | #done #ci #packaging | [2026-11](2026-11.md) |
 | U-20261116-02 | 2026-11-16 | Require je-editor 1.0.35 and PySide6 6.12.0; build with Nuitka | #done #deps #jeditor #packaging | [2026-11](2026-11.md) |
@@ -734,7 +736,7 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | File | Period | Entries |
 |---|---|---:|
-| [2026-11.md](2026-11.md) | 2026-11 | 16 |
+| [2026-11.md](2026-11.md) | 2026-11 | 18 |
 | [2026-09.md](2026-09.md) | 2026-09 | 218 |
 | [2026-09-b.md](2026-09-b.md) | 2026-09 | 120 |
 | [2026-09-c.md](2026-09-c.md) | 2026-09 | 115 |

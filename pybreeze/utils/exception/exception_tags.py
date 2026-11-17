@@ -139,6 +139,8 @@ language_metadata_shape_error: str = (
 
 # An MCP server that cannot be set up or talked to (utils.mcp)
 mcp_profile_command_error: str = "the MCP server {name!r} has no command to start it with"
+mcp_profile_url_error: str = "the MCP server {name!r} needs an http or https URL, and no command beside it"
+mcp_profile_header_error: str = "the MCP server {name!r} has a request header that cannot be sent: {header!r}"
 mcp_profile_file_error: str = "this is not a list of MCP servers (a JSON object with mcpServers)"
 mcp_start_error: str = "the MCP server could not be started ({reason})"
 mcp_closed_error: str = "the MCP server closed the connection"

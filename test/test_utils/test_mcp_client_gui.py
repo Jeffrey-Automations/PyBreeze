@@ -1165,3 +1165,129 @@ def test_no_items_left_empties_the_page(app):
     assert panel.selected() is None
     assert panel.detail_view.toPlainText() == ""
     assert not panel.action_button.isEnabled()
+
+
+# ----------------------------------------------------------------------
+# A server at a URL
+# ----------------------------------------------------------------------
+
+@pytest.fixture
+def http_server():
+    from test_utils.mcp_http_server import FakeHttpMcp
+
+    made = FakeHttpMcp(streaming=True)
+    yield made
+    made.close()
+
+
+def _remote_tab(http_server, **more) -> McpClientGUI:
+    save_profiles([McpServerProfile(name="web", url=http_server.url, timeout_seconds=20, **more)])
+    return McpClientGUI()
+
+
+def test_a_server_at_a_loopback_url_is_asked_about_and_a_no_connects_to_nothing(app, home, answers, http_server):
+    answers.answer = QMessageBox.StandardButton.No
+    gui = _remote_tab(http_server)
+    try:
+        assert gui.connect_server() is True
+        _until(lambda: not gui.is_busy() and answers.asked)
+
+        (asked,) = answers.asked
+        assert asked["text"] == _asked("mcp_local_endpoint_question", host="127.0.0.1", addresses="127.0.0.1")
+        assert asked["default"] == QMessageBox.StandardButton.No
+        assert not gui.is_connected()
+        assert http_server.requests == []
+        assert gui.status.state is State.ERROR
+    finally:
+        gui.close()
+        gui.deleteLater()
+
+
+def test_with_a_yes_it_is_connected_and_its_tools_are_called(app, home, answers, http_server):
+    gui = _remote_tab(http_server, trusted_tools=frozenset({"echo"}))
+    try:
+        assert gui.connect_server() is True
+        _until(lambda: gui.is_connected() and not gui.is_busy())
+
+        _call(gui, "echo", {"text": "over http"})
+
+        assert [asked["text"] for asked in answers.asked] == [
+            _asked("mcp_local_endpoint_question", host="127.0.0.1", addresses="127.0.0.1")]
+        assert gui.tools_panel.result_view.toPlainText() == "over http"
+        # Asked once for the tab: connecting again does not ask again
+        gui.disconnect_server()
+        _connected(gui)
+        assert len(answers.asked) == 1
+    finally:
+        gui.close()
+        gui.deleteLater()
+
+
+def test_the_session_of_a_url_server_is_exported_without_its_token_or_query(app, home, answers, http_server):
+    gui = _remote_tab(http_server, headers={"Authorization": f"Bearer {TOKEN}"})
+    try:
+        gui.connect_server()
+        _until(lambda: gui.is_connected() and not gui.is_busy())
+        _call(gui, "echo", {"text": "x"})
+
+        raw = gui._log.report().to_dict()["raw"]
+    finally:
+        gui.close()
+        gui.deleteLater()
+
+    assert raw["url"] == http_server.url
+    assert TOKEN not in json.dumps(raw)
+
+
+def test_a_projects_url_server_is_asked_about_by_its_address_without_its_query(app, home, answers):
+    (home / "project" / ".mcp.json").write_text(json.dumps({"mcpServers": {"theirs": {
+        "type": "http", "url": "https://mcp.example/v1?key=hidden"}}}), encoding="utf-8")
+    answers.answer = QMessageBox.StandardButton.No
+    gui = McpClientGUI()
+    try:
+        assert gui.connect_server() is False
+
+        (asked,) = answers.asked
+        assert asked["text"] == _asked("mcp_found_url_question", name="theirs")
+        assert asked["more"] == as_text("https://mcp.example/v1")
+    finally:
+        gui.deleteLater()
+
+
+def test_a_server_is_set_up_by_its_url_with_its_headers(app):
+    dialog = _dialog()
+    dialog.name_edit.setText("web")
+    dialog.url_edit.setText("  https://mcp.example/v1  ")
+    dialog._add_variable("Authorization", f"Bearer {TOKEN}")
+
+    profile = dialog.profile()
+
+    assert (profile.url, dict(profile.headers), profile.command) == (
+        "https://mcp.example/v1", {"Authorization": f"Bearer {TOKEN}"}, ())
+    dialog.deleteLater()
+
+
+def test_a_url_servers_headers_are_shown_again_when_it_is_changed(app):
+    dialog = _dialog(McpServerProfile(name="web", url="https://mcp.example/", headers={"X-Key": "v"}))
+
+    assert dialog.url_edit.text() == "https://mcp.example/"
+    assert dialog.environment() == {"X-Key": "v"}
+    dialog.deleteLater()
+
+
+@pytest.mark.parametrize(("command", "url", "problem"), [
+    ("server", "https://mcp.example/", "mcp_profile_command_or_url"),
+    ("", "ftp://mcp.example/", "mcp_profile_bad_url"),
+    ("", "mcp.example", "mcp_profile_bad_url"),
+])
+def test_a_url_server_that_cannot_be_saved_is_told_why(app, answers, command, url, problem):
+    dialog = _dialog()
+    dialog.name_edit.setText("web")
+    dialog.command_edit.setPlainText(command)
+    dialog.url_edit.setText(url)
+
+    dialog.accept()
+
+    assert [asked["text"] for asked in answers.asked] == [_word(problem)]
+    assert dialog.result() != McpProfileDialog.DialogCode.Accepted
+    dialog.deleteLater()

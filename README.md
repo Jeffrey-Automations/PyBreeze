@@ -84,7 +84,7 @@ Each module gets the same menu shape: **Run** (single script, batch directory, w
 - **Script execution** — single or batch, each run in a window of its own with a Stop button (Run ▸ Stop All Program stops them all), which asks whether to stop the run when it is closed while the run goes on; action files are passed by path, and a script from the tab in front that is too long for a Windows command line (~32 KB) goes through a temporary file
 - **Report generation** — HTML / JSON / XML after a run, with optional email delivery
 - **Integrated JupyterLab** — launches as a tab, in the same interpreter a run would use, installing JupyterLab there if it is missing, and upgrading it and its server first when either is a release with a known vulnerability (JupyterLab before 4.5.10 or 4.6.0–4.6.1, jupyter_server before 2.20.0); the tab stays on the lab, and a link to anywhere else opens in your browser
-- **Virtual environment awareness** — a run uses the interpreter chosen under **Python Env**; with none chosen, a `venv/` or `.venv/` in the working folder is detected and used, and without one, the interpreter the IDE runs on
+- **Virtual environment awareness** — a run uses the interpreter chosen under **Python Env**, which is remembered for the working folder from one start to the next (one whose file is gone since is passed over); with none chosen, a `venv/` or `.venv/` in the working folder is detected and used, and without one, the interpreter the IDE runs on
 
 ---
 
@@ -159,7 +159,7 @@ A report is a file from somewhere: it is read as data (XML that declares a docum
 - **A server that changes what it offers** while it is connected (the protocol's `list_changed` notifications for tools, resources and prompts) is read again by itself, in the background, with no need to connect again. The pages are filled again around your work: the selected item, the arguments typed for it and the last result stay. A tool you trusted that the server has since described differently is asked about again.
 - **Calls** lists the session: when, which tool, how it ended, how long it took. **Export Session...** saves it as an execution report (JSON).
 
-Put keys and tokens in the server's environment variables, not in its command: their values are shown as dots, and are taken out of the log, of error messages and of exported sessions wherever they turn up. Servers are started as local programs (the protocol's standard-input-and-output transport).
+Put keys and tokens in the server's environment variables, not in its command: their values are shown as dots, and are taken out of the log, of error messages and of exported sessions wherever they turn up. A server is either started as a local program (the protocol's standard-input-and-output transport) or reached at the `http`/`https` URL it already runs at (Streamable HTTP): give it a URL instead of a command, and put its token in the table, which then holds request headers. A server at an address on this machine or a private network is asked about first, naming the address; the answer holds until the tab is closed. The URL is shown and exported without its query.
 
 ### Keywords for action scripts
 
@@ -284,7 +284,7 @@ Loaded plugins appear under their own **Plugins** menu with an About entry and o
 - **English** (default)
 - **Traditional Chinese** (繁體中文)
 
-Menus, dialogs, the reasons a tool refuses its input and the run window's own notices (`[Error] …`, `[Run] …`) all follow the chosen language. Both dictionaries carry the same 1003 keys, and a test enforces that parity so a new string can never land in one language only. English and Traditional Chinese are the languages PyBreeze maintains. The Language menu also lists JEditor's Japanese (日本語) and Simplified Chinese (简体中文), which PyBreeze passes on without translating: picked, JEditor's own menus change and PyBreeze's strings stay in English. Further languages can be added via translation plugins.
+Menus, dialogs, the reasons a tool refuses its input and the run window's own notices (`[Error] …`, `[Run] …`) all follow the chosen language. Both dictionaries carry the same 1011 keys, and a test enforces that parity so a new string can never land in one language only. English and Traditional Chinese are the languages PyBreeze maintains. The Language menu also lists JEditor's Japanese (日本語) and Simplified Chinese (简体中文), which PyBreeze passes on without translating: picked, JEditor's own menus change and PyBreeze's strings stay in English. Further languages can be added via translation plugins.
 
 ---
 
