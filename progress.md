@@ -44,5 +44,3 @@
 
 ### PyBreeze 自己的功能
 
-- **#130** 〔決定〕JEditor 設定裡存的直譯器（`python_compiler`）每次啟動都被忘掉：`EditorMain.startup_setting()` 還原之後，`PyBreezeMainWindow.__init__` 又設成 `None`
-  （`pybreeze/pybreeze_ui/editor_main/main_ui.py`）。拿掉那一行，執行、JupyterLab 分頁、prthinker 與語言伺服器就會從一開始用存下來的直譯器；但存下來的路徑可能已經不存在，要不要這樣做由擁有者決定。

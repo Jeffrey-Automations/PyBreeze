@@ -81,7 +81,10 @@ Run Menu
      - Only when a plugin has registered a run configuration (see :doc:`menu_plugins`).
 
 Run Program, Run Debugger, the **Python Env** entries and PyBreeze's automation runs use
-the interpreter chosen under **Python Env > Choose python interpreter**. With none chosen,
+the interpreter chosen under **Python Env > Choose python interpreter**. The choice is
+saved with the working folder's settings and used again at the next start; one whose file
+is gone by then (a ``venv`` deleted or rebuilt) is passed over, and stays saved for when it
+is back. With none chosen,
 Run Program and Run Debugger use a ``venv/`` in the working folder, else Python on
 ``PATH``; PyBreeze's automation runs and JupyterLab use a ``venv/`` or ``.venv/`` there,
 else the Python PyBreeze runs on. Run On Shell uses no interpreter.

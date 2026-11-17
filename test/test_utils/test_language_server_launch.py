@@ -250,34 +250,42 @@ def window():
     return _Window()
 
 
+@pytest.fixture
+def chosen(tmp_path) -> str:
+    """An interpreter that is there: the window drops one whose file is gone."""
+    interpreter = tmp_path / "python.exe"
+    interpreter.write_bytes(b"")
+    return str(interpreter)
+
+
 def test_no_interpreter_is_chosen_to_begin_with(window):
     assert window.python_compiler is None
 
 
-def test_an_interpreter_set_while_the_window_is_being_built_offers_nothing_yet(window):
+def test_an_interpreter_set_while_the_window_is_being_built_offers_nothing_yet(window, chosen):
     # JEditor sets it in its own __init__, before there are menus or tabs
-    window.python_compiler = "C:/project/.venv/python"
+    window.python_compiler = chosen
 
-    assert window.python_compiler == "C:/project/.venv/python"
+    assert window.python_compiler == chosen
     assert window.offers == []
 
 
-def test_another_interpreter_chosen_later_offers_the_server_again(window):
+def test_another_interpreter_chosen_later_offers_the_server_again(window, chosen):
     window._offer_language_server()
 
-    window.python_compiler = "C:/project/.venv/python"
+    window.python_compiler = chosen
     window.python_compiler = None
 
-    assert window.offers == [None, "C:/project/.venv/python", None]
+    assert window.offers == [None, chosen, None]
 
 
-def test_the_same_interpreter_set_again_changes_nothing(window):
-    window.python_compiler = "C:/project/.venv/python"
+def test_the_same_interpreter_set_again_changes_nothing(window, chosen):
+    window.python_compiler = chosen
     window._offer_language_server()
 
-    window.python_compiler = "C:/project/.venv/python"
+    window.python_compiler = chosen
 
-    assert window.offers == ["C:/project/.venv/python"]
+    assert window.offers == [chosen]
 
 
 def test_the_chosen_interpreter_is_the_one_the_server_asks(monkeypatch):
@@ -354,4 +362,65 @@ def test_choosing_another_interpreter_moves_the_open_json_editors_to_a_server_fo
     assert seen["before"] != seen["after"]
     assert seen["running"]
     assert seen["answered"], "the editor heard nothing from the new server"
+
+
+# ----------------------------------------------------------------------
+# The interpreter chosen before, at the next start
+# ----------------------------------------------------------------------
+
+def test_an_interpreter_that_is_there_is_kept(chosen):
+    from pybreeze.pybreeze_ui.editor_main.main_ui import usable_interpreter
+
+    assert usable_interpreter(chosen) == chosen
+
+
+@pytest.mark.parametrize("saved", [None, "", "   ", 7, ["python"]])
+def test_no_choice_or_one_that_is_not_a_path_is_none(saved):
+    from pybreeze.pybreeze_ui.editor_main.main_ui import usable_interpreter
+
+    assert usable_interpreter(saved) is None
+
+
+def test_one_whose_file_is_gone_is_none_and_the_reason_is_logged(tmp_path, monkeypatch):
+    from pybreeze.pybreeze_ui.editor_main import main_ui
+
+    logged = []
+    monkeypatch.setattr(main_ui.pybreeze_logger, "info", lambda *args: logged.append(args))
+
+    assert main_ui.usable_interpreter(str(tmp_path / "deleted_venv" / "python.exe")) is None
+    assert logged
+
+
+def test_a_folder_is_no_interpreter(tmp_path):
+    from pybreeze.pybreeze_ui.editor_main.main_ui import usable_interpreter
+
+    assert usable_interpreter(str(tmp_path)) is None
+
+
+def test_the_window_takes_none_for_an_interpreter_that_is_gone(window, tmp_path):
+    window.python_compiler = str(tmp_path / "gone" / "python.exe")
+
+    assert window.python_compiler is None
+
+
+_THE_INTERPRETER_AT_START = """
+from je_editor.pyside_ui.main_ui.save_settings.user_setting_file import user_setting_dict
+result = {"window": window.python_compiler, "saved": user_setting_dict.get("python_compiler")}
+"""
+
+
+def test_the_interpreter_chosen_before_is_the_one_used_after_a_restart(tmp_path):
+    chosen = str(Path(sys.executable).resolve())
+
+    seen = run_started_window(tmp_path, _THE_INTERPRETER_AT_START, saved_settings={"python_compiler": chosen})
+
+    assert seen == {"window": chosen, "saved": chosen}
+
+
+def test_one_that_is_gone_since_falls_back_to_the_default_and_stays_saved(tmp_path):
+    gone = str(tmp_path / "deleted_venv" / "Scripts" / "python.exe")
+
+    seen = run_started_window(tmp_path, _THE_INTERPRETER_AT_START, saved_settings={"python_compiler": gone})
+
+    assert seen == {"window": None, "saved": gone}
 
