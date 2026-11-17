@@ -96,7 +96,7 @@ Template Method 定義的子行程生命週期：
 
 | 階段 | 做的事 |
 |---|---|
-| 解譯器解析 | `renew_path()` → 執行視窗帶著 IDE 選定的直譯器（`python_compiler`，由 `build_task_process()` 從主視窗抄過來）就用它；沒選才用 `default_interpreter()`：工作目錄有 `venv/`、`.venv/` 就交給 `check_and_choose_venv()`，沒有就用 IDE 自己的直譯器（`sys.executable`，和 JupyterLab 分頁一樣；PATH 上的 `python3` 在 Windows 常是 Store 的空殼，exit 9009 什麼也不說），只有打包版才去 PATH 找；找不到時**不拋例外**，直接把錯誤寫進執行視窗並回傳 `False` |
+| 解譯器解析 | `renew_path()` → 執行視窗帶著 IDE 選定的直譯器（`python_compiler`：主視窗啟動時從 JEditor 的設定 `user_setting_dict["python_compiler"]` 讀回，property 的 setter 經 `usable_interpreter()` 把檔案已經不在的當成沒選，設定檔裡的仍保留；由 `build_task_process()` 從主視窗抄過來）就用它；沒選才用 `default_interpreter()`：工作目錄有 `venv/`、`.venv/` 就交給 `check_and_choose_venv()`，沒有就用 IDE 自己的直譯器（`sys.executable`，和 JupyterLab 分頁一樣；PATH 上的 `python3` 在 Windows 常是 Store 的空殼，exit 9009 什麼也不說），只有打包版才去 PATH 找；找不到時**不拋例外**，直接把錯誤寫進執行視窗並回傳 `False` |
 | 啟動 | `subprocess.Popen(args, shell=False, stdin=DEVNULL, creationflags=CREATE_NO_WINDOW, env=PYTHONIOENCODING=...)`；`stdin` 不接 IDE 的主控台（腳本 `input()` 立刻拿到 EOF）；`Popen` 丟 `OSError`（直譯器不見、命令列超過 Windows 上限）時寫進執行視窗並顯示，不從選單拋出 |
 | 讀取 | 兩條 daemon Thread 各自經 `queue_pump.read_stream_into_queue()` 對 stdout / stderr `read1()`（有多少讀多少，不等換行：沒換行的狀態列與用 `\r` 重畫的進度條才會即時出現；沒有 `read1` 的文字串流才逐行讀），原樣塞進 `Queue`（保留縮排、行尾與空行）；**空讀 = EOF 立刻 break**（否則會 100% CPU 空轉） |
 | 送 UI | `QTimer` 每 100 ms 呼叫 `pull_text()`，經 `pump_message_queue()` 每 tick 最多抽 256 則，交給 `CodeWindow.append_output()` |
@@ -580,8 +580,6 @@ first_summary → first_code_review → judge_single_review ┐（評分前一�
 3. **`start_editor()` 以 `os._exit(ret)` 收場** — 繞過 atexit 與 Qt 拆解。對 GUI 主程式常見（避免殘留執行緒卡住），但 `closeEvent` 之後的清理路徑等於不存在。
 
 4. **`PackageManager` 名實不符** — 類別名暗示 pip 管理，實際只承載 `syntax_check_list` 六個項目；pip 安裝落在 `install_utils.install_package()`。
-
-5. **儲存的直譯器在啟動時被清掉** — JEditor 的 `EditorMain.startup_setting()` 把設定檔的 `python_compiler` 放回 `self.python_compiler`，`PyBreezeMainWindow.__init__` 在 `super().__init__()` 之後又設成 `None`（`main_ui.py`）。實測：設定檔存了直譯器路徑，啟動後 `window.python_compiler` 是 `None`，要到使用者再從 Python 環境選單選一次才有值。執行與語言伺服器因此在啟動時都用 `default_interpreter()`（`progress.md` #130）。
 
 ---
 

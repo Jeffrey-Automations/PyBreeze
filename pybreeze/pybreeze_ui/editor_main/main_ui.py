@@ -51,6 +51,27 @@ EDITOR_EXTEND_TAB: dict[str, type[QWidget]] = {
 _ICON_PATH = Path(__file__).with_name("pybreeze_icon.ico")
 
 
+def usable_interpreter(interpreter: object) -> str | None:
+    """*interpreter* when it names a file that is there; ``None`` otherwise, so that the default is used.
+
+    The interpreter chosen under Python Env is saved and kept from one start to
+    the next, and the file may be gone by then: a ``venv`` deleted or rebuilt, a
+    drive not connected. The saved choice is left in the settings, for when it
+    is back.
+    """
+    if not isinstance(interpreter, str) or not interpreter.strip():
+        return None
+    try:
+        there = Path(interpreter).is_file()
+    except OSError as error:
+        pybreeze_logger.info("main_ui.py the chosen interpreter cannot be looked at: %r", error)
+        return None
+    if not there:
+        pybreeze_logger.info("main_ui.py the chosen interpreter is not there any more; the default is used")
+        return None
+    return interpreter
+
+
 def _close_guarded(widget: QWidget, *steps) -> None:
     """Run *widget*'s closing *steps*, logging a failure instead of raising it.
 
@@ -71,17 +92,19 @@ class PyBreezeMainWindow(EditorMain):
 
     @property
     def python_compiler(self) -> str | None:
-        """The interpreter chosen in the IDE for running scripts, ``None`` when none was.
+        """The interpreter chosen in the IDE for running scripts, ``None`` when none was or it is gone.
 
         JEditor's Python Env menu and its venv detection set it as a plain
         attribute. It is a property here so that the choice reaches the action
         language server: the editors' completion and diagnostics used to keep
         the keywords of the interpreter the IDE started with until a restart.
+        One whose file is not there is taken as none (``usable_interpreter``).
         """
         return getattr(self, "_python_compiler", None)
 
     @python_compiler.setter
     def python_compiler(self, interpreter: str | None) -> None:
+        interpreter = usable_interpreter(interpreter)
         changed = interpreter != getattr(self, "_python_compiler", None)
         self._python_compiler = interpreter
         # Not before the window has offered the server once: JEditor sets this while it is still building
@@ -106,8 +129,9 @@ class PyBreezeMainWindow(EditorMain):
         # Third-party plugins placed there will be loaded automatically.
 
         self.current_run_code_window: list[CodeWindow] = []
-        # Project compiler if user not choose this will use which to find
-        self.python_compiler = None
+        # The interpreter chosen under Python Env, as JEditor saved it: kept from one start to
+        # the next. It was set back to None here, and every start forgot the choice
+        self.python_compiler = user_setting_dict.get("python_compiler")
         # Delete JEditor help
         if self.help_menu:
             self.help_menu.deleteLater()
